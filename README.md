@@ -1,4 +1,4 @@
-### MortgageMate
+# MortgageMate
 
 A Tool for helping users decide upon optimal mortgage options.
 
