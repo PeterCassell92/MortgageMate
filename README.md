@@ -2,9 +2,11 @@
 
 A Tool for helping users decide upon optimal mortgage options.
 
-I made this simply because I found Claude's mortgage advice useful to myself but it took me knowing how to use Claude well to design the right prompt. Idea of this project is
+I made this simply because I found Claude's mortgage advice useful to myself but it took me knowing how to use Claude well to design the right prompt. I want to help future me and potentially other people get to a good prompt so they can easily be presented with actionable data and an understanding of their best mortgage options.
 
-## A) To be a vibe code playground.
+### Idea of this project is:
+
+## A) To be a vibe code playground for us to get good at vibe engineering.
 
 This project does not matter. It is just for make good features with vibe code. The app may ultimately be somewhat useful but it isn't really needed - there are many mortgage tools in this world.
 
