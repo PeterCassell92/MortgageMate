@@ -98,6 +98,22 @@ To be determined based on final project setup.
 - 🔲 Design and implement analysis result templates/rendering
 - 🔲 Add data validation for mortgage scenario completeness
 
+## Development Workflow
+
+### Frontend Development Process
+**IMPORTANT: Always run TypeScript check before committing frontend changes:**
+
+```bash
+cd mm_frontend
+yarn type-check
+```
+
+This prevents TypeScript errors from reaching runtime and ensures code quality. The `yarn type-check` command runs `tsc --noEmit` to validate types without generating files.
+
+### Common Issues
+- **Module resolution errors:** Restart Vite dev server after creating new files
+- **Import/export mismatches:** Always run `yarn type-check` to catch early
+
 ## Current Development Status
 Project initialization phase - environment configuration completed.
 
