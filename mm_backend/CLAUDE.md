@@ -56,7 +56,7 @@ mm_backend/
 Backend reads from root `.env` file:
 - `PORT`: Server port (default: 4321)
 - `FRONTEND_URL`: Frontend URL for CORS (http://localhost:3000)
-- `DATABASE_URL`: PostgreSQL connection string
+- `DATABASE_URI`: PostgreSQL connection string
 - `JWT_SECRET`: Secret for JWT token signing
 - `BCRYPT_ROUNDS`: Password hashing rounds (default: 12)
 - `ANTHROPIC_API_KEY`: Claude API key

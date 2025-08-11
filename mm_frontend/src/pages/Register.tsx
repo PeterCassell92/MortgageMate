@@ -21,7 +21,8 @@ const Register: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   
-  const { register, isLoading } = useAuth();
+  const { register } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,10 +57,13 @@ const Register: React.FC = () => {
     }
 
     try {
+      setIsLoading(true);
       await register(username.trim(), password);
+      setIsLoading(false);
       // Registration successful, user is automatically logged in
       navigate('/dashboard');
     } catch (err: any) {
+      setIsLoading(false);
       if (err.details && Array.isArray(err.details)) {
         setValidationErrors(err.details);
       } else {
@@ -69,15 +73,20 @@ const Register: React.FC = () => {
   };
 
   return (
-    <Container component="main" maxWidth="sm">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
+    <Box
+      sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'background.default',
+      }}
+    >
+      <Container component="main" maxWidth="sm">
         <Card sx={{ width: '100%', maxWidth: 400 }}>
           <CardContent sx={{ p: 4 }}>
             <Typography component="h1" variant="h4" align="center" gutterBottom>
@@ -177,8 +186,8 @@ const Register: React.FC = () => {
             </Box>
           </CardContent>
         </Card>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 

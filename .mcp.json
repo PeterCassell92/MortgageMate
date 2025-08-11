@@ -1,0 +1,24 @@
+{
+ "mcpServers": {
+    "typescript-compilation": {
+      "command": "node",
+      "args": ["${TYPESCRIPT_COMPILER_MCP_PATH}/dist/index.js"],
+      "env": {}
+    },
+    "postgres": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "DATABASE_URI",
+        "crystaldba/postgres-mcp",
+        "--access-mode=unrestricted"
+      ],
+      "env": {
+        "DATABASE_URI": "postgresql://postgres:postgres@localhost:5433/mortgagemate_dev"
+      }
+    }
+  }  
+}

@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mortgagemate_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./mm_backend/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./mm_backend
+      dockerfile: Dockerfile
+    ports:
+      - "4321:4321"
+    environment:
+      - PORT=4321
+      - FRONTEND_URL=http://localhost:3000
+      - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/mortgagemate_dev
+      - JWT_SECRET=your-secret-key-here
+      - BCRYPT_ROUNDS=12
+    volumes:
+      - ./mm_backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "sleep 5 && yarn dev"
+
+  frontend:
+    build:
+      context: ./mm_frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:4321
+      - VITE_APP_NAME=MortgageMate
+      - VITE_NODE_ENV=development
+    volumes:
+      - ./mm_frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

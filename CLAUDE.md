@@ -64,7 +64,44 @@ A web application to help householders with mortgages determine if they are on t
 - Database connection settings
 
 ## Development Commands
-To be determined based on final project setup.
+
+### Docker Compose (Recommended)
+Start all services (PostgreSQL, backend, frontend) with a single command:
+
+```bash
+# Start all services in development mode
+docker-compose up
+
+# Start services in background
+docker-compose up -d
+
+# Stop all services
+docker-compose down
+
+# Rebuild and start services
+docker-compose up --build
+
+# View logs
+docker-compose logs -f [service-name]
+```
+
+### Manual Development (Alternative)
+If you prefer running services individually:
+
+**Backend:**
+```bash
+cd mm_backend
+yarn dev
+```
+
+**Frontend:**
+```bash
+cd mm_frontend  
+yarn dev
+```
+
+**Database:**
+Ensure PostgreSQL is running locally with mortgagemate_dev database.
 
 ## Development Todo List
 
@@ -74,7 +111,7 @@ To be determined based on final project setup.
 - ✅ Set up project structure with mm_frontend and mm_backend directories (04/08/2025)
 - ✅ Initialize React TypeScript project in mm_frontend with Material-UI (04/08/2025)
 - ✅ Initialize Express TypeScript project in mm_backend (04/08/2025)
-- 🔲 Add basic authentication workflow
+- ✅ Add basic authentication workflow (11/08/2025)
   - ✅ Create PostgreSQL database with users table (04/08/2025)
   - ✅ Create authorization API endpoints (04/08/2025)
   - ✅ Create login API endpoints (04/08/2025)

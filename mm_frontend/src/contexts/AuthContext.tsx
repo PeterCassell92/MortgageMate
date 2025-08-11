@@ -11,73 +11,40 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   // Initialize auth state from localStorage
   useEffect(() => {
-    const initializeAuth = async () => {
-      const storedToken = localStorage.getItem('auth_token');
-      const storedUser = localStorage.getItem('auth_user');
+    const storedToken = localStorage.getItem('auth_token');
+    const storedUser = localStorage.getItem('auth_user');
 
-      if (storedToken && storedUser) {
-        try {
-          // Validate the stored token
-          const validation = await AuthAPI.validateToken(storedToken);
-          if (validation.valid) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
-          } else {
-            // Token is invalid, clear storage
-            localStorage.removeItem('auth_token');
-            localStorage.removeItem('auth_user');
-          }
-        } catch (error) {
-          // Token validation failed, clear storage
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('auth_user');
-          console.error('Token validation failed:', error);
-        }
-      }
-      setIsLoading(false);
-    };
-
-    initializeAuth();
+    if (storedToken && storedUser) {
+      // Simply restore from localStorage without validation
+      // Individual components can handle token validation if needed
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
+    }
   }, []);
 
   const login = async (username: string, password: string): Promise<void> => {
-    setIsLoading(true);
-    try {
-      const response = await AuthAPI.login({ username, password });
-      
-      // Store auth data
-      localStorage.setItem('auth_token', response.token);
-      localStorage.setItem('auth_user', JSON.stringify(response.user));
-      
-      setToken(response.token);
-      setUser(response.user);
-    } catch (error) {
-      throw error; // Re-throw to handle in component
-    } finally {
-      setIsLoading(false);
-    }
+    const response = await AuthAPI.login({ username, password });
+    
+    // Store auth data
+    localStorage.setItem('auth_token', response.token);
+    localStorage.setItem('auth_user', JSON.stringify(response.user));
+    
+    setToken(response.token);
+    setUser(response.user);
   };
 
   const register = async (username: string, password: string): Promise<void> => {
-    setIsLoading(true);
-    try {
-      const response = await AuthAPI.register({ username, password });
-      
-      // Store auth data
-      localStorage.setItem('auth_token', response.token);
-      localStorage.setItem('auth_user', JSON.stringify(response.user));
-      
-      setToken(response.token);
-      setUser(response.user);
-    } catch (error) {
-      throw error; // Re-throw to handle in component
-    } finally {
-      setIsLoading(false);
-    }
+    const response = await AuthAPI.register({ username, password });
+    
+    // Store auth data
+    localStorage.setItem('auth_token', response.token);
+    localStorage.setItem('auth_user', JSON.stringify(response.user));
+    
+    setToken(response.token);
+    setUser(response.user);
   };
 
   const logout = (): void => {
@@ -96,7 +63,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
-    isLoading,
   };
 
   return (

@@ -125,3 +125,6 @@ All frontend environment variables must use the `VITE_` prefix to be accessible 
 - Implement proper error boundaries
 - Add loading states for all async operations
 - Ensure accessibility (a11y) compliance
+- Use the available TypeScript Compiler MCP tool to check if changes have resulted in valid Typescript
+- Do not offer to run the dev server, the developer will always be running that anyway.
+- When making UI changes, do offer to use playwright to navigate to the page and screenshot pages to diagnose issues / measure success.

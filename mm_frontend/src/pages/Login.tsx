@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   Card,
@@ -19,11 +19,13 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  const { login, isLoading } = useAuth();
+  const { login } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     setError(null);
 
     // Basic client-side validation
@@ -33,24 +35,31 @@ const Login: React.FC = () => {
     }
 
     try {
+      setIsLoading(true);
       await login(username.trim(), password);
-      // Login successful
+      setIsLoading(false);
       navigate('/dashboard');
     } catch (err: any) {
+      setIsLoading(false);
       setError(err.message || 'Login failed. Please check your credentials.');
     }
   };
 
   return (
-    <Container component="main" maxWidth="sm">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
+    <Box
+      sx={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'background.default',
+      }}
+    >
+      <Container component="main" maxWidth="sm">
         <Card sx={{ width: '100%', maxWidth: 400 }}>
           <CardContent sx={{ p: 4 }}>
             <Typography component="h1" variant="h4" align="center" gutterBottom>
@@ -60,12 +69,6 @@ const Login: React.FC = () => {
             <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
               Sign in to your MortgageMate account
             </Typography>
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
 
             <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
               <TextField
@@ -110,6 +113,12 @@ const Login: React.FC = () => {
                 )}
               </Button>
 
+              {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {error}
+                </Alert>
+              )}
+
               <Box textAlign="center">
                 <Typography variant="body2">
                   Don't have an account?{' '}
@@ -121,8 +130,8 @@ const Login: React.FC = () => {
             </Box>
           </CardContent>
         </Card>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 };
 
