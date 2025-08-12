@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 
 // Import routes
 import authRoutes from './routes/auth';
+import chatRoutes from './routes/chat';
+import chatsRoutes from './routes/chats';
 
 // Load environment variables
 dotenv.config({ path: '../.env' });
@@ -32,6 +34,8 @@ app.get('/health', (req, res) => {
 
 // Mount routes
 app.use('/api/auth', authRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/chats', chatsRoutes);
 
 // API info route
 app.get('/api', (req, res) => {
@@ -45,6 +49,20 @@ app.get('/api', (req, res) => {
         me: '/api/auth/me',
         validateToken: '/api/auth/validate-token',
         refresh: '/api/auth/refresh'
+      },
+      chat: {
+        chat: '/api/chat',
+        config: '/api/chat/config',
+        mortgageAnalysis: '/api/chat/mortgage-analysis'
+      },
+      chats: {
+        list: '/api/chats',
+        latest: '/api/chats/latest',
+        create: '/api/chats',
+        getById: '/api/chats/:id',
+        updateTitle: '/api/chats/:id/title',
+        getMessages: '/api/chats/:id/messages',
+        delete: '/api/chats/:id'
       }
     }
   });

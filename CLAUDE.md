@@ -152,7 +152,46 @@ This prevents TypeScript errors from reaching runtime and ensures code quality. 
 - **Import/export mismatches:** Always run `yarn type-check` to catch early
 
 ## Current Development Status
-Project initialization phase - environment configuration completed.
+Chat system with document upload and comprehensive prompt template architecture complete. Ready for Anthropic API integration.
+
+## Next Steps - API Integration
+### Getting Anthropic API Tokens
+1. **Sign up/Login** at https://console.anthropic.com/
+2. **Go to API Keys** section in the dashboard  
+3. **Create a new API key** (give it a descriptive name like "MortgageMate Development")
+4. **Copy the key** (starts with `sk-ant-api...`)
+
+### Adding to Environment
+Once you have the key, add it to your environment:
+
+**Option 1: Docker Environment (Recommended)**
+```bash
+# Update your local .env file
+echo "ANTHROPIC_API_KEY=your-actual-key-here" >> .env
+
+# Then restart containers to pick up the new key
+docker-compose down && docker-compose up -d
+```
+
+**Option 2: Direct Environment Variable**
+```bash
+export ANTHROPIC_API_KEY=your-actual-key-here
+```
+
+### Test the Integration
+Once the key is set up:
+1. **Switch from mock mode** by setting `MOCK_LLM=false` in .env
+2. **Test the chat** with real Claude responses
+3. **Try the mortgage advisor prompts** with actual AI analysis  
+4. **Monitor token usage tracking** with real API calls
+
+### API Pricing Reference
+- **Claude 3.5 Sonnet**: ~$3 per 1M input tokens, ~$15 per 1M output tokens
+- **Typical chat message**: ~100-500 tokens
+- **Full mortgage analysis**: ~2,000-5,000 tokens
+- **Cost per analysis**: Usually under $0.10
+
+The system tracks all token usage and costs in the database for spending monitoring.
 
 ## Claude Interaction Memories
 - When I say "Ongoing" or "Add to Ongoing" - you will know this means I want to add a task to the Ongoing List

@@ -30,6 +30,10 @@ services:
       - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/mortgagemate_dev
       - JWT_SECRET=your-secret-key-here
       - BCRYPT_ROUNDS=12
+      - LLM_PROVIDER=mock
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - MOCK_LLM=true
     volumes:
       - ./mm_backend:/app
       - /app/node_modules

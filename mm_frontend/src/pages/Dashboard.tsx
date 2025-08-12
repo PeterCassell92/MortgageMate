@@ -1,24 +1,42 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { Outlet } from 'react-router-dom';
 import AppHeader from '../components/AppHeader';
-import DashboardHome from '../components/DashboardHome';
+import Chat from '../components/Chat';
+import { ChatService } from '../services/chatService';
 
 const Dashboard: React.FC = () => {
+  const handleSendMessage = async (message: string): Promise<string> => {
+    const chatService = ChatService.getInstance();
+    
+    try {
+      const response = await chatService.sendMessage([
+        { role: 'user', content: message }
+      ]);
+      return response;
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      throw error;
+    }
+  };
+
   return (
     <Box sx={{ 
-      minHeight: '100vh',
+      height: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      bgcolor: 'background.default'
+      bgcolor: 'background.default',
+      overflow: 'hidden'
     }}>
       <AppHeader />
       
-      {/* This will render child routes, or DashboardHome as default */}
-      <Outlet />
-      
-      {/* For now, show DashboardHome directly until we set up nested routes */}
-      <DashboardHome />
+      {/* Chat component takes up the remaining space */}
+      <Box sx={{ 
+        flex: 1, 
+        display: 'flex',
+        minHeight: 0 // This ensures the flex child can shrink below its content size
+      }}>
+        <Chat onSendMessage={handleSendMessage} />
+      </Box>
     </Box>
   );
 };
