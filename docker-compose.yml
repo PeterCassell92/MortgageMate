@@ -28,12 +28,16 @@ services:
       - PORT=4321
       - FRONTEND_URL=http://localhost:3000
       - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/mortgagemate_dev
-      - JWT_SECRET=your-secret-key-here
-      - BCRYPT_ROUNDS=12
-      - LLM_PROVIDER=mock
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-here}
+      - BCRYPT_ROUNDS=${BCRYPT_ROUNDS:-12}
+      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - MOCK_LLM=true
+      - MOCK_LLM=${MOCK_LLM:-true}
+      - DOCUMENT_PARSER_PROVIDER=${DOCUMENT_PARSER_PROVIDER:-claude}
+      - DOCUMENT_PARSER_FALLBACK=${DOCUMENT_PARSER_FALLBACK:-}
+      - MAX_DOCUMENT_SIZE=${MAX_DOCUMENT_SIZE:-10485760}
+      - MINDEE_API_KEY=${MINDEE_API_KEY:-}
     volumes:
       - ./mm_backend:/app
       - /app/node_modules

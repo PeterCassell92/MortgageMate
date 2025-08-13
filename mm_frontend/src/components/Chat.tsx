@@ -7,9 +7,11 @@ import {
   Typography,
   CircularProgress,
   Tooltip,
-  Chip
+  Chip,
+  LinearProgress
 } from '@mui/material';
 import { Send as SendIcon, AttachFile as AttachFileIcon } from '@mui/icons-material';
+import { ChatService, ChatResponse } from '../services/chatService';
 
 interface Message {
   id: string;
@@ -17,6 +19,10 @@ interface Message {
   content: string;
   timestamp: Date;
   documents?: UploadedDocument[];
+  advisorMode?: 'data_gathering' | 'analysis' | 'followup';
+  completenessScore?: number;
+  missingFields?: string[];
+  isWelcomeMessage?: boolean;
 }
 
 interface UploadedDocument {
@@ -26,19 +32,26 @@ interface UploadedDocument {
   size: number;
   category?: 'mortgage_statement' | 'bank_statement' | 'pay_slip' | 'tax_document' | 'property_document' | 'other';
   url?: string;
+  file: File; // Store the actual File object
 }
 
 interface ChatProps {
-  onSendMessage?: (message: string) => Promise<string>;
+  chatId?: string;
 }
 
-const Chat: React.FC<ChatProps> = ({ onSendMessage }) => {
+const Chat: React.FC<ChatProps> = ({ chatId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [attachedDocuments, setAttachedDocuments] = useState<UploadedDocument[]>([]);
+  const [currentAdvisorMode, setCurrentAdvisorMode] = useState<'data_gathering' | 'analysis' | 'followup'>('data_gathering');
+  const [completenessScore, setCompletenessScore] = useState(0);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatService = ChatService.getInstance();
 
   // Auto-scroll to bottom when new messages are added
   const scrollToBottom = () => {
@@ -48,6 +61,53 @@ const Chat: React.FC<ChatProps> = ({ onSendMessage }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Initialize chat with welcome message on component mount
+  useEffect(() => {
+    const initializeChat = async () => {
+      if (isInitialized) return;
+      
+      setIsLoading(true);
+      try {
+        // TODO: Pass actual user ID from auth context
+        const response = await chatService.initializeChat();
+        
+        if (response.data?.isWelcomeMessage) {
+          const welcomeMessage: Message = {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: response.data.message,
+            timestamp: new Date(),
+            isWelcomeMessage: true,
+            advisorMode: response.data.advisorMode,
+            completenessScore: response.data.completenessScore
+          };
+          
+          setMessages([welcomeMessage]);
+          setCurrentAdvisorMode(response.data.advisorMode || 'data_gathering');
+          setCompletenessScore(response.data.completenessScore || 0);
+        }
+        
+        setIsInitialized(true);
+      } catch (error) {
+        console.error('Failed to initialize chat:', error);
+        // Add error message
+        const errorMessage: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: 'Welcome to MortgageMate! I\'m here to help you analyze your mortgage options. Let\'s start by gathering some basic information about your current mortgage.',
+          timestamp: new Date(),
+          isWelcomeMessage: true
+        };
+        setMessages([errorMessage]);
+        setIsInitialized(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeChat();
+  }, [isInitialized]);
 
   // Categorize document based on filename and type
   const categorizeDocument = (filename: string, mimeType: string): UploadedDocument['category'] => {
@@ -77,7 +137,8 @@ const Chat: React.FC<ChatProps> = ({ onSendMessage }) => {
       name: file.name,
       type: file.type,
       size: file.size,
-      category: categorizeDocument(file.name, file.type)
+      category: categorizeDocument(file.name, file.type),
+      file: file // Store the actual File object
     }));
 
     setAttachedDocuments(prev => [...prev, ...newDocuments]);
@@ -97,7 +158,7 @@ const Chat: React.FC<ChatProps> = ({ onSendMessage }) => {
   };
 
   const handleSendMessage = async () => {
-    if ((!inputValue.trim() && attachedDocuments.length === 0) || isLoading) return;
+    if ((!inputValue.trim() && attachedDocuments.length === 0) || isLoading || !isInitialized) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -115,20 +176,38 @@ const Chat: React.FC<ChatProps> = ({ onSendMessage }) => {
     setIsLoading(true);
 
     try {
-      let response = 'Thank you for your message. I\'m here to help with your mortgage questions.';
+      // Detect if user is requesting analysis
+      const hasRequestedAnalysis = /\b(analy[sz]e|analy[sz]is|recommend|advice|what should i do|help me decide|best option|compare|should i switch|proceed|yes.*analy)/i.test(messageText);
       
-      if (onSendMessage) {
-        response = await onSendMessage(messageText);
+      // Extract actual File objects from attached documents
+      const documentFiles = attachedDocuments.map(doc => doc.file);
+      
+      const response = await chatService.sendMessage(messageText, undefined, hasRequestedAnalysis, documentFiles.length > 0 ? documentFiles : undefined);
+
+      if (response.data) {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: response.data.message,
+          timestamp: new Date(),
+          advisorMode: response.data.advisorMode,
+          completenessScore: response.data.completenessScore,
+          missingFields: response.data.missingFields
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+        
+        // Update state with latest advisor information
+        if (response.data.advisorMode) {
+          setCurrentAdvisorMode(response.data.advisorMode);
+        }
+        if (response.data.completenessScore !== undefined) {
+          setCompletenessScore(response.data.completenessScore);
+        }
+        if (response.data.missingFields) {
+          setMissingFields(response.data.missingFields);
+        }
       }
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
@@ -174,6 +253,40 @@ const Chat: React.FC<ChatProps> = ({ onSendMessage }) => {
           minHeight: 0 // Allows the paper to shrink properly
         }}
       >
+        {/* Progress Header */}
+        {isInitialized && (
+          <Box
+            sx={{
+              p: 2,
+              borderBottom: '1px solid #e0e0e0',
+              bgcolor: '#f8f9fa'
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                {currentAdvisorMode === 'data_gathering' && 'Gathering Information'}
+                {currentAdvisorMode === 'analysis' && 'Analysis Mode'}
+                {currentAdvisorMode === 'followup' && 'Follow-up Discussion'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {completenessScore}% Complete
+              </Typography>
+            </Box>
+            <LinearProgress 
+              variant="determinate" 
+              value={completenessScore} 
+              sx={{ height: 4, borderRadius: 2 }}
+            />
+            {missingFields.length > 0 && (
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Still needed: {missingFields.join(', ')}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+
         {/* Messages Container */}
         <Box
           sx={{

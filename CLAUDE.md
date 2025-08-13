@@ -119,21 +119,28 @@ Ensure PostgreSQL is running locally with mortgagemate_dev database.
   - ✅ Create front end page for registration (04/08/2025)
   - ✅ Create front end login page (04/08/2025)
 - 🔲 Set up environment configuration for local development
+- 🔲 ensure that Chats, llm_requests and llm_response are all stored in the database properly
+  - 🔲 Then make it possible for a user to be mid-chat and revisit the same chat.
+    - 🔲 this will be done by loading the messages from the database, loading the data from the mortgage_scenarios back into the session instead of initialising a new chat
+    - 🔲 make it possible to make a new chat from fresh which will make a chat with a new uuid. Chat table will need to have latest_view_time so that chats can be ordered by time last visited and the most recent chat will be restored when a user returns to the chat part of the dashboard.
 
 ### Medium Priority
 - 🔲 Migrate database to cloud-based solution for collaborator access
-- 🔲 Set up PostgreSQL database schema for mortgage_scenarios and analyses tables
+- ✅ Set up PostgreSQL database schema for mortgage_scenarios and analyses tables
 - 🔲 Design mortgage scenario data model supporting Fixed/Variable/Tracker types
-- 🔲 Build conversational chatbot interface for mortgage data capture
+- ✅ Build conversational chatbot interface for mortgage data capture
 - 🔲 Implement backend API endpoints for mortgage scenario CRUD operations
 - 🔲 Create user dashboard to view and manage mortgage scenarios
-- 🔲 Build LLM prompt construction system for mortgage analysis
-- 🔲 Set up Anthropic Claude API integration with mock toggle environment variable
+- ✅ Build LLM prompt construction system for mortgage analysis
+- ✅ Set up Anthropic Claude API integration with mock toggle environment variable
+- 🔲 Revisit best Document Parsing services and models for scanning in mortgage documents specifically
+- 🔲 create specialized prompts for different document types (statements, offers, valuations)
+- 🔲 Create specialized prompts when asking about certain information.
 
 ### Low Priority
 - 🔲 Implement 'Create Analysis' functionality and result caching
 - 🔲 Design and implement analysis result templates/rendering
-- 🔲 Add data validation for mortgage scenario completeness
+- ✅ Add data validation for mortgage scenario completeness
 
 ## Development Workflow
 
@@ -199,6 +206,27 @@ The system tracks all token usage and costs in the database for spending monitor
 
 ## Project Conventions and Guidelines
 - Completed Tasks on the Ongoing Todo list are ticked off with a tick emoji and a completed date in brackets in format DD/MM/YYYY
+
+## Document/Image Parsing Options
+
+### AI-Powered Document Processing Options
+For processing mortgage documents, bank statements, and financial PDFs/images:
+
+#### Primary Options (Vision-Enabled LLMs)
+1. **Claude 3.5 Sonnet (Anthropic)** - Has excellent vision capabilities and can process images, documents, tables very well
+2. **GPT-4 Vision (OpenAI)** - Also good at document processing
+
+#### Specialized Document AI Services  
+3. **Google Document AI** - Enterprise-grade document processing
+4. **AWS Textract** - Amazon's document analysis service
+5. **Azure Form Recognizer/Document Intelligence** - Microsoft's document processing
+6. **Mindee API** - Specialized for financial documents
+
+### Implementation Notes
+- Claude 4 Sonnet already integrated - best first choice for mortgage document parsing
+- Can use vision API to extract structured data from uploaded mortgage statements, offers, etc.
+- Should create specialized prompts for different document types (statements, offers, valuations)
+
 
 ## Interaction Guidelines
 - Whenever we reach a task completion (as far as you think), you should prompt me to ask if I want to mark the task as complete. I may respond 1) Yes or 2) No, it's not done yet, I will define how we approach next steps and/or refinements

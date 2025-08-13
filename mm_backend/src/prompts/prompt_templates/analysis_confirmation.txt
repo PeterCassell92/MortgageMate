@@ -1,0 +1,41 @@
+Based on our conversation, I have now gathered all the essential information required for a comprehensive mortgage analysis:
+
+## Information Collected ✅
+
+**Property Details:**
+{{#if propertyLocation}}- Location: {{propertyLocation}}{{/if}}
+{{#if propertyType}}- Property Type: {{propertyType}}{{/if}}
+{{#if propertyValue}}- Current Value: £{{propertyValue}}{{/if}}
+
+**Current Mortgage:**
+{{#if currentBalance}}- Outstanding Balance: £{{currentBalance}}{{/if}}
+{{#if monthlyPayment}}- Monthly Payment: £{{monthlyPayment}}{{/if}}
+{{#if currentRate}}- Interest Rate: {{currentRate}}%{{/if}}
+{{#if currentLender}}- Current Lender: {{currentLender}}{{/if}}
+
+**Personal Details:**
+{{#if annualIncome}}- Annual Income: £{{annualIncome}}{{/if}}
+{{#if employmentStatus}}- Employment: {{employmentStatus}}{{/if}}
+
+**Objectives:**
+{{#if primaryObjective}}- Primary Goal: {{primaryObjective}}{{/if}}
+
+---
+
+## Ready for Analysis 🎯
+
+I have sufficient information to provide you with a detailed analysis that will include:
+
+- **Market comparison** of your current rate vs available deals
+- **Switching scenarios** with projected savings/costs  
+- **Financial projections** showing long-term impact
+- **Timing recommendations** for optimal switching
+- **Specific lender recommendations** based on your profile
+
+**Would you like me to proceed with the comprehensive analysis, or do you have any additional information you'd like to share first?**
+
+Please respond with:
+- **"Yes, proceed with analysis"** - to begin the detailed analysis
+- **"More information"** - if you have additional details to share
+
+I'm ready to provide you with professional mortgage advice tailored to your specific situation.

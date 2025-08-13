@@ -55,7 +55,7 @@ export class LLMService {
 
     try {
       const response = await this.anthropic.messages.create({
-        model: this.config.defaultModel?.anthropic || 'claude-3-5-sonnet-20241022',
+        model: this.config.defaultModel?.anthropic || 'claude-sonnet-4-20250514',
         max_tokens: request.maxTokens || 1000,
         temperature: request.temperature || 0.7,
         system: systemPrompt,
@@ -159,7 +159,7 @@ export function createLLMService(): LLMService {
     openaiApiKey: process.env.OPENAI_API_KEY,
     mockMode: process.env.MOCK_LLM === 'true',
     defaultModel: {
-      anthropic: 'claude-3-5-sonnet-20241022',
+      anthropic: 'claude-sonnet-4-20250514',
       openai: 'gpt-4-turbo-preview',
     },
   };

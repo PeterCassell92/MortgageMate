@@ -19,65 +19,68 @@ export class MortgageAdvisorService {
     'propertyValue',
     'currentBalance',
     'monthlyPayment',
-    'annualIncome'
+    'annualIncome',
+    'currentRate',
   ];
 
   private static readonly IMPORTANT_FIELDS: (keyof MortgageData)[] = [
     'currentLender',
     'mortgageType',
-    'currentRate',
     'termRemaining',
     'employmentStatus',
     'primaryObjective'
   ];
 
-  static calculateCompleteness(mortgageData: Partial<MortgageData>): number {
-    let score = 0;
-    let totalPossible = 0;
-
-    // Required fields are worth more points
+  static hasAllRequiredData(mortgageData: Partial<MortgageData>): boolean {
+    // Check that ALL required fields are present and valid
     for (const field of this.REQUIRED_FIELDS) {
-      totalPossible += 10;
+      const value = mortgageData[field];
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static calculateCompleteness(mortgageData: Partial<MortgageData>): number {
+    // Simple calculation for UI display purposes only
+    let score = 0;
+    const allFields = [...this.REQUIRED_FIELDS, ...this.IMPORTANT_FIELDS];
+    
+    for (const field of allFields) {
       if (mortgageData[field]) {
-        score += 10;
+        score++;
       }
     }
 
-    // Important fields are worth fewer points
-    for (const field of this.IMPORTANT_FIELDS) {
-      totalPossible += 5;
-      if (mortgageData[field]) {
-        score += 5;
-      }
-    }
-
-    return Math.round((score / totalPossible) * 100);
+    return Math.round((score / allFields.length) * 100);
   }
 
   static determineAdvisorMode(
     mortgageData: Partial<MortgageData>,
-    hasRequestedAnalysis: boolean = false
+    hasRequestedAnalysis: boolean = false,
+    hasPreviousAnalysis: boolean = false
   ): AdvisorMode {
-    const completeness = this.calculateCompleteness(mortgageData);
+    // If we have a previous analysis and user is asking follow-up questions
+    if (hasPreviousAnalysis) {
+      return 'followup';
+    }
     
-    // If user specifically requested analysis or we have enough data (75%+)
-    if (hasRequestedAnalysis || completeness >= 75) {
+    // Only move to analysis if we have ALL required data AND user requested it
+    if (this.hasAllRequiredData(mortgageData) && hasRequestedAnalysis) {
       return 'analysis';
     }
     
-    // If we have some data but user is asking follow-up questions after analysis
-    if (completeness >= 50) {
-      // This would be determined by checking if there's been a previous analysis
-      return 'data_gathering'; // Default to gathering more data
-    }
-
+    // Default: stay in data gathering mode until all required data is collected
     return 'data_gathering';
   }
 
   static identifyMissingCriticalData(mortgageData: Partial<MortgageData>): string[] {
     const missing: string[] = [];
     
+    // Check all required fields
     if (!mortgageData.propertyLocation) missing.push('Property location');
+    if (!mortgageData.propertyType) missing.push('Property type');
     if (!mortgageData.propertyValue) missing.push('Current property value');
     if (!mortgageData.currentBalance) missing.push('Outstanding mortgage balance');
     if (!mortgageData.monthlyPayment) missing.push('Current monthly payment');
@@ -92,7 +95,11 @@ export class MortgageAdvisorService {
     hasRequestedAnalysis: boolean = false
   ): Promise<string> {
     
-    const mode = this.determineAdvisorMode(session.mortgageData, hasRequestedAnalysis);
+    const mode = this.determineAdvisorMode(
+      session.mortgageData, 
+      hasRequestedAnalysis, 
+      !!session.lastAnalysis
+    );
     let templateType: PromptTemplateType;
     
     const context: ConversationContext = {
@@ -125,30 +132,33 @@ export class MortgageAdvisorService {
     );
   }
 
-  private static getConversationStage(session: AdvisorSession): string {
-    const completeness = this.calculateCompleteness(session.mortgageData);
+  static getConversationStage(session: AdvisorSession): string {
+    const missing = this.identifyMissingCriticalData(session.mortgageData);
     
-    if (completeness < 25) return 'Initial consultation - gathering basic information';
-    if (completeness < 50) return 'Building understanding of current mortgage situation';
-    if (completeness < 75) return 'Collecting final details for comprehensive analysis';
-    if (session.lastAnalysis) return 'Post-analysis discussion and clarification';
-    
-    return 'Ready for detailed mortgage analysis';
+    if (missing.length === this.REQUIRED_FIELDS.length) {
+      return 'Initial consultation - gathering basic information';
+    } else if (missing.length > 3) {
+      return 'Building understanding of current mortgage situation';
+    } else if (missing.length > 0) {
+      return 'Collecting final required details for analysis';
+    } else if (session.lastAnalysis) {
+      return 'Post-analysis discussion and clarification';
+    } else {
+      return 'All required data collected - ready for analysis';
+    }
   }
 
-  private static getCurrentPriority(session: AdvisorSession): string {
+  static getCurrentPriority(session: AdvisorSession): string {
     const missing = this.identifyMissingCriticalData(session.mortgageData);
     
     if (missing.length > 3) {
       return 'Establishing basic property and mortgage details';
     } else if (missing.length > 0) {
-      return `Collecting final critical information: ${missing.join(', ')}`;
+      return `Collecting required information: ${missing.join(', ')}`;
     } else if (!session.mortgageData.primaryObjective) {
       return 'Understanding client goals and objectives';
-    } else if (session.completenessScore < 75) {
-      return 'Gathering additional context for comprehensive analysis';
     } else {
-      return 'Ready to proceed with detailed mortgage analysis';
+      return 'All required data collected - ready for analysis on request';
     }
   }
 
@@ -167,6 +177,17 @@ export class MortgageAdvisorService {
     }
     
     return recommendations.slice(0, 5); // Top 5 recommendations
+  }
+
+  static isRequestingAnalysis(userMessage: string): boolean {
+    const analysisKeywords = [
+      'analyze', 'analysis', 'recommend', 'advice', 'what should i do',
+      'help me decide', 'best option', 'compare', 'should i switch',
+      'remortgage', 'better deal', 'save money', 'calculate'
+    ];
+    
+    const lowerMessage = userMessage.toLowerCase();
+    return analysisKeywords.some(keyword => lowerMessage.includes(keyword));
   }
 
   static createInitialSession(): AdvisorSession {

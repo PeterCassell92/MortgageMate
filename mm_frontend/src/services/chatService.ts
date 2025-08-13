@@ -8,7 +8,13 @@ export interface ChatMessage {
 export interface ChatResponse {
   success: boolean;
   data?: {
+    chatId?: string;
     message: string;
+    isWelcomeMessage?: boolean;
+    advisorMode?: 'data_gathering' | 'analysis' | 'followup';
+    completenessScore?: number;
+    extractedData?: any;
+    missingFields?: string[];
     usage?: {
       inputTokens: number;
       outputTokens: number;
@@ -16,6 +22,7 @@ export interface ChatResponse {
     };
     provider: string;
     model: string;
+    analysis?: string;
   };
   error?: string;
 }
@@ -32,6 +39,7 @@ export interface ChatConfig {
 
 export class ChatService {
   private static instance: ChatService;
+  private chatId: string | null = null;
 
   public static getInstance(): ChatService {
     if (!ChatService.instance) {
@@ -40,17 +48,15 @@ export class ChatService {
     return ChatService.instance;
   }
 
-  async sendMessage(messages: ChatMessage[]): Promise<string> {
+  async initializeChat(userId?: string): Promise<ChatResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+      const response = await fetch(`${API_BASE_URL}/api/chat/initialize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages,
-          maxTokens: 1000,
-          temperature: 0.7
+          userId // TODO: Get from auth context instead
         }),
       });
 
@@ -64,7 +70,60 @@ export class ChatService {
         throw new Error(data.error || 'Unknown error occurred');
       }
 
-      return data.data?.message || 'I apologize, but I didn\'t receive a proper response.';
+      // Store chat ID for future requests
+      if (data.data?.chatId) {
+        this.chatId = data.data.chatId;
+      }
+
+      return data;
+      
+    } catch (error) {
+      console.error('Chat initialization error:', error);
+      throw new Error(`Failed to initialize chat: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async sendMessage(userMessage: string, chatId?: string, hasRequestedAnalysis?: boolean, documents?: File[]): Promise<ChatResponse> {
+    try {
+      const formData = new FormData();
+      
+      // Add text data
+      formData.append('chatId', this.chatId || chatId || '');
+      if (userMessage) {
+        formData.append('userMessage', userMessage);
+      }
+      if (hasRequestedAnalysis) {
+        formData.append('hasRequestedAnalysis', 'true');
+      }
+      
+      // Add documents if any
+      if (documents && documents.length > 0) {
+        documents.forEach(doc => {
+          formData.append('documents', doc);
+        });
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: 'POST',
+        body: formData, // No Content-Type header - let browser set it for FormData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: ChatResponse = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Unknown error occurred');
+      }
+
+      // Store chat ID for future requests  
+      if (data.data?.chatId) {
+        this.chatId = data.data.chatId;
+      }
+
+      return data;
       
     } catch (error) {
       console.error('Chat service error:', error);
