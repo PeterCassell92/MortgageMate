@@ -1,5 +1,5 @@
 import { Anthropic } from '@anthropic-ai/sdk';
-import { DocumentParser, DocumentParseRequest, DocumentParseResponse, DocumentType } from '../../types/documentParser';
+import { DocumentParser, DocumentParseRequest, DocumentParseResponse, DocumentType } from '../../../types/documentParser';
 
 interface ClaudeParserConfig {
   apiKey: string;
@@ -23,19 +23,21 @@ export class ClaudeDocumentParser implements DocumentParser {
 
     try {
       const base64Data = request.fileBuffer.toString('base64');
-      const prompt = this.generatePrompt(request.documentType);
+      const systemPrompt = this.generateSystemPrompt();
+      const userPrompt = this.generatePrompt(request.documentType);
 
       const response = await this.anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
         temperature: 0.1, // Low temperature for consistent extraction
+        system: systemPrompt,
         messages: [
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: prompt
+                text: userPrompt
               },
               {
                 type: 'image',
@@ -72,10 +74,48 @@ export class ClaudeDocumentParser implements DocumentParser {
     }
   }
 
-  private generatePrompt(documentType: DocumentType): string {
-    const basePrompt = `You are a financial document parsing AI. Extract ALL relevant information from this document and return it as structured JSON data.
+  private generateSystemPrompt(): string {
+    return `You are a specialized financial document parsing AI designed for mortgage and property-related document analysis. Your primary function is to extract structured data from uploaded financial documents with high accuracy and consistency.
 
-CRITICAL: You must return ONLY a JSON object with the extracted data, no other text or explanation.`;
+## YOUR ROLE & CAPABILITIES
+
+You process the following document types:
+- **Mortgage Statements**: Extract loan details, payments, balances, rates, lender information
+- **Mortgage Offers**: Extract offer terms, rates, fees, conditions, property details  
+- **Bank Statements**: Extract income patterns, mortgage payments, account balances
+- **Property Valuations**: Extract property details, valuation amounts, market conditions
+- **Payslips**: Extract employment and income information
+- **Tax Documents**: Extract income, tax, and financial status information
+
+## CRITICAL REQUIREMENTS
+
+1. **JSON-ONLY OUTPUT**: Return ONLY valid JSON with extracted data. No explanations, comments, or additional text.
+
+2. **ACCURACY PRIORITY**: Extract exact values as shown in the document. Do not estimate or calculate missing information.
+
+3. **NULL FOR MISSING**: Use null for fields that are not present or clearly visible in the document.
+
+4. **CONSISTENT FORMATTING**: 
+   - Monetary values: Extract as numbers without currency symbols (e.g., 150000 not "£150,000")
+   - Dates: Use format "YYYY-MM-DD" where possible
+   - Percentages: Extract as decimal numbers (e.g., 5.39 not "5.39%")
+
+5. **FIELD PRECISION**: Match field names exactly as specified in the extraction template.
+
+6. **UK FINANCIAL FOCUS**: Understand UK mortgage terminology, lenders, and document formats.
+
+## DATA EXTRACTION PRINCIPLES
+
+- **Completeness**: Extract all available relevant information
+- **Precision**: Capture exact values, not approximations  
+- **Consistency**: Use standardized formats across all extractions
+- **Reliability**: Only include information that is clearly visible and readable
+
+Your extracted data will be used by a mortgage advisory system to provide personalized financial advice to UK homeowners. Accuracy is critical for proper mortgage analysis and recommendations.`;
+  }
+
+  private generatePrompt(documentType: DocumentType): string {
+    const basePrompt = `Extract all relevant information from this ${documentType.replace('_', ' ')} document and return it as structured JSON data using the exact format specified below:`;
 
     switch (documentType) {
       case 'mortgage_statement':

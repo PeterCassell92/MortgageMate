@@ -140,6 +140,7 @@ Ensure PostgreSQL is running locally with mortgagemate_dev database.
 ### Low Priority
 - 🔲 Implement 'Create Analysis' functionality and result caching
 - 🔲 Design and implement analysis result templates/rendering
+- 🔲 Remove remove chat Id from Chat.tsx - Investigate, but I think that chat Id is loaded by the backend against the authenticated user.
 - ✅ Add data validation for mortgage scenario completeness
 
 ## Development Workflow

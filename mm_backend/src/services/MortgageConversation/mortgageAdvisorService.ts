@@ -1,4 +1,4 @@
-import { PromptTemplate, MortgageData, ConversationContext, PromptTemplateType } from '../prompts/prompt_scripts/PromptTemplate';
+import { PromptTemplate, MortgageData, ConversationContext, PromptTemplateType } from './prompts/prompt_scripts/PromptTemplate';
 
 export type AdvisorMode = 'data_gathering' | 'analysis' | 'followup';
 

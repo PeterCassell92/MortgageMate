@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { createLLMService } from '../services/llmService';
 import { LLMMessage } from '../types/llm';
-import { MortgageAdvisorService, AdvisorSession } from '../services/mortgageAdvisorService';
-import { createDocumentParsingService } from '../services/documentParser';
+import { MortgageAdvisorService, AdvisorSession } from '../services/MortgageConversation/mortgageAdvisorService';
+import { createDocumentParsingService } from '../services/DocumentParser/documentParser';
 import { DocumentType } from '../types/documentParser';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -39,7 +39,7 @@ const upload = multer({
 // Helper function to load system prompt
 async function loadSystemPrompt(): Promise<string> {
   try {
-    const promptPath = path.join(__dirname, '../prompts/prompt_templates/system_prompt.txt');
+    const promptPath = path.join(__dirname, '../services/MortgageConversation/prompts/prompt_templates/system_prompt.txt');
     return await fs.readFile(promptPath, 'utf-8');
   } catch (error) {
     console.error('Failed to load system prompt:', error);

@@ -1,4 +1,4 @@
-import { DocumentParser, DocumentParseRequest, DocumentParseResponse, DocumentParserConfig, DocumentParserProvider } from '../types/documentParser';
+import { DocumentParser, DocumentParseRequest, DocumentParseResponse, DocumentParserConfig, DocumentParserProvider } from '../../types/documentParser';
 import { ClaudeDocumentParser } from './parsers/claudeDocumentParser';
 // Future imports:
 // import { OpenAIDocumentParser } from './parsers/openaiDocumentParser';

@@ -38,7 +38,7 @@ interface UploadedDocument {
 interface ChatProps {
   chatId?: string;
 }
-
+//remove chat Id from here
 const Chat: React.FC<ChatProps> = ({ chatId }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
