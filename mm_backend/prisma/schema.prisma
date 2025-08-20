@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int                @id @default(autoincrement())
+  username          String             @unique @db.VarChar(255)
+  passwordHash      String             @map("password_hash") @db.VarChar(255)
+  salt              String             @db.VarChar(255)
+  createdAt         DateTime?          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime?          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  chats             Chat[]
+  llm_requests      LLMRequest[]
+  mortgageScenarios MortgageScenario[]
+
+  @@map("users")
+}
+
+model Chat {
+  id                   Int               @id @default(autoincrement())
+  userId               Int               @map("user_id")
+  title                String            @default("New Chat") @db.VarChar(255)
+  mortgageScenarioId   Int?              @map("mortgage_scenario_id")
+  createdAt            DateTime?         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt            DateTime?         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  latestViewTime       DateTime?         @default(now()) @map("latest_view_time") @db.Timestamp(6)
+  nonUniqueNumericalId Int?              @map("non_unique_numerical_id")
+  chatId               String            @unique @map("chat_id") @db.Uuid
+  overallStatus        String?           @default("active") @map("overall_status") @db.VarChar(50)
+  mortgageScenario     MortgageScenario? @relation(fields: [mortgageScenarioId], references: [id], onUpdate: NoAction)
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  llm_requests         LLMRequest[]
+  messages             Message[]
+
+  @@unique([userId, nonUniqueNumericalId], map: "chats_user_numerical_id_unique")
+  @@map("chats")
+}
+
+model MortgageScenario {
+  id                    Int        @id @default(autoincrement())
+  userId                Int?       @map("user_id")
+  name                  String     @db.VarChar(255)
+  mortgageType          String?    @map("mortgage_type") @db.VarChar(50)
+  monthlyPayment        Decimal?   @map("monthly_payment") @db.Decimal(10, 2)
+  term_length           Int?
+  initial_loan_size     Decimal?   @db.Decimal(12, 2)
+  overpayments          String?
+  initial_house_value   Decimal?   @db.Decimal(12, 2)
+  product_cost          Decimal?   @db.Decimal(10, 2)
+  exitFees              String?    @map("exit_fees")
+  createdAt             DateTime?  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt             DateTime?  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  advisorMode           String?    @default("data_gathering") @map("advisor_mode") @db.VarChar(20)
+  conversationStage     String?    @map("conversation_stage")
+  currentPriority       String?    @map("current_priority")
+  propertyLocation      String?    @map("property_location") @db.VarChar(255)
+  propertyType          String?    @map("property_type") @db.VarChar(100)
+  propertyValue         Decimal?   @map("property_value") @db.Decimal(12, 2)
+  propertyUse           String?    @map("property_use") @db.VarChar(100)
+  currentLender         String?    @map("current_lender") @db.VarChar(255)
+  currentBalance        Decimal?   @map("current_balance") @db.Decimal(12, 2)
+  currentRate           Decimal?   @map("current_rate") @db.Decimal(5, 3)
+  productEndDate        String?    @map("product_end_date") @db.VarChar(50)
+  earlyRepaymentCharges String?    @map("early_repayment_charges")
+  annualIncome          Decimal?   @map("annual_income") @db.Decimal(12, 2)
+  employmentStatus      String?    @map("employment_status") @db.VarChar(100)
+  creditScore           String?    @map("credit_score") @db.VarChar(50)
+  existingDebts         Decimal?   @map("existing_debts") @db.Decimal(12, 2)
+  disposableIncome      Decimal?   @map("disposable_income") @db.Decimal(12, 2)
+  availableDeposit      Decimal?   @map("available_deposit") @db.Decimal(12, 2)
+  primaryObjective      String?    @map("primary_objective")
+  riskTolerance         String?    @map("risk_tolerance") @db.VarChar(50)
+  preferredTerm         Int?       @map("preferred_term")
+  paymentPreference     String?    @map("payment_preference") @db.VarChar(100)
+  timeline              String?    @map("timeline") @db.VarChar(100)
+  additionalContext     String?    @map("additional_context")
+  documentsSummary      String?    @map("documents_summary")
+  analyses              Analysis[]
+  chats                 Chat[]
+  user                  User?      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("mortgage_scenarios")
+}
+
+model Message {
+  id            Int          @id @default(autoincrement())
+  chatId        Int?         @map("chat_id")
+  fromUser      String       @map("from_user") @db.VarChar(255)
+  toUser        String       @map("to_user") @db.VarChar(255)
+  messageBody   String       @map("message_body")
+  sent_time     DateTime?    @default(now()) @db.Timestamp(6)
+  received_time DateTime?    @db.Timestamp(6)
+  llmRequestId  Int?         @map("llm_request_id")
+  llmResponseId Int?         @map("llm_response_id")
+  createdAt     DateTime?    @default(now()) @map("created_at") @db.Timestamp(6)
+  chat          Chat?        @relation(fields: [chatId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  llmRequest    LLMRequest?  @relation(fields: [llmRequestId], references: [id], onUpdate: NoAction)
+  llmResponse   LLMResponse? @relation(fields: [llmResponseId], references: [id], onUpdate: NoAction)
+
+  @@map("messages")
+}
+
+model Analysis {
+  id                 Int               @id @default(autoincrement())
+  mortgageScenarioId Int?              @map("mortgage_scenario_id")
+  promptSent         String?           @map("prompt_sent")
+  llmResponse        String?           @map("llm_response")
+  analysisResults    String?           @map("analysis_results")
+  createdAt          DateTime?         @default(now()) @map("created_at") @db.Timestamp(6)
+  mortgageScenario   MortgageScenario? @relation(fields: [mortgageScenarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("analyses")
+}
+
+model LLMRequest {
+  id           Int           @id @default(autoincrement())
+  user_id      Int?
+  chat_id      Int?
+  url          String        @db.VarChar(500)
+  http_method  String        @default("POST") @db.VarChar(10)
+  request_body String
+  status       String        @default("inprocess") @db.VarChar(20)
+  provider     String        @db.VarChar(50)
+  model        String        @db.VarChar(100)
+  start_time   DateTime?     @default(now()) @db.Timestamp(6)
+  finish_time  DateTime?     @db.Timestamp(6)
+  createdAt    DateTime?     @default(now()) @map("created_at") @db.Timestamp(6)
+  chats        Chat?         @relation(fields: [chat_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        User?         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  llmResponse  LLMResponse[]
+  messages     Message[]
+
+  @@map("llm_requests")
+}
+
+model LLMResponse {
+  id                Int         @id @default(autoincrement())
+  llmRequestId      Int?        @map("llm_request_id")
+  response_totality String
+  input_tokens      Int?        @default(0)
+  outputTokens      Int?        @default(0) @map("output_tokens")
+  totalTokens       Int?        @default(0) @map("total_tokens")
+  estimated_cost    Decimal?    @default(0.00) @db.Decimal(10, 6)
+  createdAt         DateTime?   @default(now()) @map("created_at") @db.Timestamp(6)
+  llmRequest        LLMRequest? @relation(fields: [llmRequestId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  messages          Message[]
+
+  @@map("llm_responses")
+}

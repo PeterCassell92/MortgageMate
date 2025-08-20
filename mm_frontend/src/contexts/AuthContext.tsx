@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthContextType } from '../types/auth';
 import { AuthAPI } from '../services/api';
+import { useError } from './ErrorContext';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -11,6 +12,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const { handleNetworkError } = useError();
 
   // Initialize auth state from localStorage
   useEffect(() => {
@@ -26,25 +28,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (username: string, password: string): Promise<void> => {
-    const response = await AuthAPI.login({ username, password });
-    
-    // Store auth data
-    localStorage.setItem('auth_token', response.token);
-    localStorage.setItem('auth_user', JSON.stringify(response.user));
-    
-    setToken(response.token);
-    setUser(response.user);
+    try {
+      const response = await AuthAPI.login({ username, password });
+      
+      // Store auth data
+      localStorage.setItem('auth_token', response.token);
+      localStorage.setItem('auth_user', JSON.stringify(response.user));
+      
+      setToken(response.token);
+      setUser(response.user);
+    } catch (error: any) {
+      if (error.message.includes('Connection failed')) {
+        handleNetworkError(error);
+      }
+      throw error;
+    }
   };
 
   const register = async (username: string, password: string): Promise<void> => {
-    const response = await AuthAPI.register({ username, password });
-    
-    // Store auth data
-    localStorage.setItem('auth_token', response.token);
-    localStorage.setItem('auth_user', JSON.stringify(response.user));
-    
-    setToken(response.token);
-    setUser(response.user);
+    try {
+      const response = await AuthAPI.register({ username, password });
+      
+      // Store auth data
+      localStorage.setItem('auth_token', response.token);
+      localStorage.setItem('auth_user', JSON.stringify(response.user));
+      
+      setToken(response.token);
+      setUser(response.user);
+    } catch (error: any) {
+      if (error.message.includes('Connection failed')) {
+        handleNetworkError(error);
+      }
+      throw error;
+    }
   };
 
   const logout = (): void => {

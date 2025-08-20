@@ -20,10 +20,11 @@ services:
 
   backend:
     build:
-      context: ./mm_backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./mm_backend/Dockerfile
     ports:
       - "4321:4321"
+      - "9229:9229"  # Debug port
     environment:
       - PORT=4321
       - FRONTEND_URL=http://localhost:3000
@@ -39,12 +40,13 @@ services:
       - MAX_DOCUMENT_SIZE=${MAX_DOCUMENT_SIZE:-10485760}
       - MINDEE_API_KEY=${MINDEE_API_KEY:-}
     volumes:
-      - ./mm_backend:/app
-      - /app/node_modules
+      - ./mm_backend:/app/mm_backend
+      - ./models:/app/models
+      - /app/mm_backend/node_modules
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "sleep 5 && yarn dev"
+    command: sh -c "sleep 5 && node --inspect=0.0.0.0:9229 -r ts-node/register src/index.ts"
 
   frontend:
     build:

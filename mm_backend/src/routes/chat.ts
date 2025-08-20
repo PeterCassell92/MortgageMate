@@ -2,12 +2,21 @@ import { Router, Request, Response } from 'express';
 import { createLLMService } from '../services/llmService';
 import { LLMMessage } from '../types/llm';
 import { MortgageAdvisorService, AdvisorSession } from '../services/MortgageConversation/mortgageAdvisorService';
+// import { ChatPersistenceServicePrismaSimple } from '../services/chatPersistenceServicePrismaSimple';
 import { createDocumentParsingService } from '../services/DocumentParser/documentParser';
 import { DocumentType } from '../types/documentParser';
+import { requireAuth } from '../middleware/auth';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import multer from 'multer';
-import { v4 as uuidv4 } from 'uuid';
+
+// Define authenticated request interface
+interface AuthenticatedRequest extends Request {
+  user: {
+    id: number;
+    username: string;
+  };
+}
 
 const router = Router();
 const llmService = createLLMService();
@@ -16,6 +25,17 @@ const documentParser = createDocumentParsingService();
 // Temporary in-memory session store (TODO: replace with database persistence)
 const sessionStore = new Map<string, AdvisorSession>();
 
+// Temporary in-memory chat store for demo
+interface TempChat {
+  id: string;
+  numericalId: number;
+  title: string;
+  userId: number;
+  createdAt: Date;
+}
+const tempChatStore = new Map<number, TempChat[]>(); // userId -> chats
+let nextNumericalId = 1;
+
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -23,7 +43,7 @@ const upload = multer({
     fileSize: parseInt(process.env.MAX_DOCUMENT_SIZE || '10485760'), // 10MB
     files: 5 // Max 5 files per request
   },
-  fileFilter: (req: any, file: any, cb: any) => {
+  fileFilter: (_req: any, file: any, cb: any) => {
     const allowedTypes = [
       'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
       'application/pdf', 'image/heic', 'image/heif'
@@ -101,18 +121,70 @@ function determineDocumentType(filename: string): DocumentType {
   }
 }
 
-// POST /api/chat/initialize - Initialize new chat session
-router.post('/initialize', async (req: Request, res: Response) => {
+// GET /api/chat/list - Get all active chats for user
+router.get('/list', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.body; // TODO: Get from JWT token instead
+    const userId = (req as AuthenticatedRequest).user.id;
+    
+    // Get chats from temporary in-memory store
+    const userChats = tempChatStore.get(userId) || [];
+    const chats = userChats.map(chat => ({
+      id: chat.id,
+      numericalId: chat.numericalId,
+      title: chat.title,
+      lastViewed: chat.createdAt,
+      updatedAt: chat.createdAt,
+      createdAt: chat.createdAt
+    }));
+    
+    // Get latest chat for auto-loading
+    const latestChat = userChats.length > 0 ? userChats[userChats.length - 1] : null;
+    
+    return res.json({
+      success: true,
+      data: { 
+        chats,
+        latestChatId: latestChat?.numericalId || null
+      }
+    });
+    
+  } catch (error) {
+    console.error('Failed to get chat list:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error' 
+    });
+  }
+});
 
-    // Generate unique chat ID
-    const chatId = uuidv4();
+// POST /api/chat/create - Create new chat session
+router.post('/create', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { title } = req.body;
+    const userId = (req as AuthenticatedRequest).user.id;
+    
+    // Create new chat session in temporary memory store
+    const chatId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const numericalId = nextNumericalId++;
+    
+    const newChat: TempChat = {
+      id: chatId,
+      numericalId,
+      title: title || 'New Chat',
+      userId,
+      createdAt: new Date()
+    };
+    
+    // Store chat in temporary store
+    if (!tempChatStore.has(userId)) {
+      tempChatStore.set(userId, []);
+    }
+    tempChatStore.get(userId)!.push(newChat);
     
     // Create new advisor session
     const advisorSession = MortgageAdvisorService.createInitialSession();
     
-    // Store session (TODO: save to database instead of memory)
+    // Store session in memory for immediate use
     sessionStore.set(chatId, advisorSession);
 
     // Load system prompt
@@ -150,12 +222,14 @@ router.post('/initialize', async (req: Request, res: Response) => {
     // Save updated session
     sessionStore.set(chatId, updatedSession);
 
-    // TODO: Save chat to database with user association
-
+    // TODO: Re-enable database persistence later
+    // await ChatPersistenceServicePrismaSimple.saveSessionToDatabase(...)
+    
     return res.json({
       success: true,
       data: {
         chatId,
+        numericalId: numericalId,
         message: cleanedResponse,
         isWelcomeMessage: true,
         advisorMode: updatedSession.mode,
@@ -166,9 +240,9 @@ router.post('/initialize', async (req: Request, res: Response) => {
         model: response.model,
       }
     });
-
+    
   } catch (error) {
-    console.error('Chat initialization error:', error);
+    console.error('Failed to create new chat:', error);
     return res.status(500).json({ 
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error' 
@@ -176,21 +250,144 @@ router.post('/initialize', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/chat - Send message to existing chat session (with optional file uploads)
-router.post('/', upload.array('documents', 5), async (req: Request, res: Response) => {
+// POST /api/chat/:numericalId/load - Load existing chat session by numerical ID
+router.post('/:numericalId/load', requireAuth, async (req: Request, res: Response) => {
   try {
+    const numericalId = parseInt(req.params.numericalId);
+    if (isNaN(numericalId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid numerical ID'
+      });
+    }
+    
+    const userId = (req as AuthenticatedRequest).user.id;
+    
+    // Find chat in temporary store
+    const userChats = tempChatStore.get(userId) || [];
+    const chat = userChats.find(c => c.numericalId === numericalId);
+    
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat session not found'
+      });
+    }
+    
+    // Get or create advisor session
+    let advisorSession = sessionStore.get(chat.id);
+    if (!advisorSession) {
+      // Create new session if not found in memory
+      advisorSession = MortgageAdvisorService.createInitialSession();
+      sessionStore.set(chat.id, advisorSession);
+    }
+    
+    return res.json({
+      success: true,
+      data: {
+        chatId: chat.id,
+        numericalId: numericalId,
+        advisorMode: advisorSession.mode,
+        completenessScore: advisorSession.completenessScore,
+        mortgageData: advisorSession.mortgageData,
+        conversationHistory: advisorSession.conversationHistory || [],
+        lastAnalysis: advisorSession.lastAnalysis
+      }
+    });
+    
+  } catch (error) {
+    console.error('Failed to load chat session:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error' 
+    });
+  }
+});
+
+// POST /api/chat/:numericalId/delete - Delete chat from temporary store
+router.post('/:numericalId/delete', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const numericalId = parseInt(req.params.numericalId);
+    if (isNaN(numericalId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid numerical ID'
+      });
+    }
+    
+    const userId = (req as AuthenticatedRequest).user.id;
+    
+    // Find and remove chat from temporary store
+    const userChats = tempChatStore.get(userId) || [];
+    const chatIndex = userChats.findIndex(c => c.numericalId === numericalId);
+    
+    if (chatIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat session not found'
+      });
+    }
+    
+    const chatId = userChats[chatIndex].id;
+    
+    // Remove chat from store
+    userChats.splice(chatIndex, 1);
+    tempChatStore.set(userId, userChats);
+    
+    // Remove from memory store if present
+    sessionStore.delete(chatId);
+    
+    return res.json({
+      success: true,
+      message: 'Chat deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Failed to delete chat session:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error' 
+    });
+  }
+});
+
+// POST /api/chat/:numericalId - Send message to existing chat session (with optional file uploads)
+router.post('/:numericalId', requireAuth, upload.array('documents', 5), async (req: Request, res: Response) => {
+  try {
+    const numericalId = parseInt(req.params.numericalId);
+    if (isNaN(numericalId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid numerical ID'
+      });
+    }
+    
     const { 
-      chatId, 
       userMessage, 
       hasRequestedAnalysis = false 
     } = req.body;
 
     // Validate request
-    if (!chatId || (!userMessage && (!req.files || req.files.length === 0))) {
+    if (!userMessage && (!req.files || req.files.length === 0)) {
       return res.status(400).json({ 
-        error: 'chatId and either userMessage or documents are required' 
+        error: 'Either userMessage or documents are required' 
       });
     }
+
+    const userId = (req as AuthenticatedRequest).user.id;
+    
+    // Find chat in temporary store
+    const userChats = tempChatStore.get(userId) || [];
+    const chat = userChats.find(c => c.numericalId === numericalId);
+    
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat session not found'
+      });
+    }
+    
+    const chatId = chat.id;
 
     const files = req.files as Express.Multer.File[] || [];
     
@@ -244,7 +441,7 @@ router.post('/', upload.array('documents', 5), async (req: Request, res: Respons
     if (!advisorSession) {
       return res.status(404).json({ 
         success: false,
-        error: 'Chat session not found. Please initialize a new chat first.' 
+        error: 'Chat session not found. Please load the chat first.' 
       });
     }
     
@@ -255,7 +452,7 @@ router.post('/', upload.array('documents', 5), async (req: Request, res: Respons
     );
 
     // Check if user is requesting analysis
-    const requestingAnalysis = hasRequestedAnalysis || 
+    const _requestingAnalysis = hasRequestedAnalysis || 
       MortgageAdvisorService.isRequestingAnalysis(userMessage);
 
     // Get conversation history and add current user message
@@ -344,8 +541,8 @@ The user has uploaded documents with extracted data above. Use this information 
     // Save updated session
     sessionStore.set(chatId, finalSession);
 
-    // TODO: Save extracted data to mortgage_scenarios table
-    // TODO: Save conversation to llm_requests/llm_responses tables
+    // TODO: Re-enable database persistence later
+    // await ChatPersistenceServicePrismaSimple.saveSessionToDatabase(...);
 
     return res.json({
       success: true,
@@ -373,7 +570,7 @@ The user has uploaded documents with extracted data above. Use this information 
 });
 
 // GET /api/chat/config - Get current chat configuration
-router.get('/config', (req: Request, res: Response) => {
+router.get('/config', (_req: Request, res: Response) => {
   res.json({
     success: true,
     data: {
@@ -386,7 +583,7 @@ router.get('/config', (req: Request, res: Response) => {
 });
 
 // POST /api/chat/mortgage-analysis - Specialized endpoint for mortgage analysis
-router.post('/mortgage-analysis', async (req: Request, res: Response) => {
+router.post('/mortgage-analysis', requireAuth, async (req: Request, res: Response) => {
   try {
     const { mortgageData, userQuestion } = req.body;
 

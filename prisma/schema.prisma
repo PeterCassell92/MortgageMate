@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model chats {
+  id                      Int                 @id @default(autoincrement())
+  chat_id                 String              @unique @db.Uuid
+  non_unique_numerical_id Int
+  user_id                 Int?
+  title                   String              @default("New Chat") @db.VarChar(255)
+  mortgage_scenario_id    Int?
+  overall_status          String?             @default("active") @db.VarChar(20)
+  latest_view_time        DateTime?           @default(now()) @db.Timestamp(6)
+  created_at              DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?           @default(now()) @db.Timestamp(6)
+  mortgage_scenarios      mortgage_scenarios? @relation(fields: [mortgage_scenario_id], references: [id], onUpdate: NoAction)
+  users                   users?              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  messages                messages[]
+
+  @@index([chat_id], map: "idx_chats_chat_id")
+  @@index([mortgage_scenario_id], map: "idx_chats_mortgage_scenario_id")
+  @@index([non_unique_numerical_id], map: "idx_chats_numerical_id")
+  @@index([overall_status], map: "idx_chats_status")
+  @@index([user_id], map: "idx_chats_user_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model messages {
+  id              Int       @id @default(autoincrement())
+  chat_id         Int?
+  user_id         Int?
+  from_user       String?   @db.VarChar(20)
+  to_user         String?   @db.VarChar(20)
+  message_body    String
+  llm_request_id  Int?
+  llm_response_id Int?
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  chats           chats?    @relation(fields: [chat_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users?    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([chat_id], map: "idx_messages_chat_id")
+  @@index([created_at], map: "idx_messages_created_at")
+  @@index([user_id], map: "idx_messages_user_id")
+}
+
+model mortgage_scenarios {
+  id                      Int       @id @default(autoincrement())
+  user_id                 Int?
+  name                    String    @default("New Scenario") @db.VarChar(255)
+  advisor_mode            String?   @default("data_gathering") @db.VarChar(50)
+  conversation_stage      String?   @db.VarChar(100)
+  current_priority        String?   @db.VarChar(255)
+  property_location       String?   @db.VarChar(255)
+  property_type           String?   @db.VarChar(100)
+  property_value          Decimal?  @db.Decimal(12, 2)
+  property_use            String?   @db.VarChar(100)
+  current_lender          String?   @db.VarChar(255)
+  mortgage_type           String?   @db.VarChar(50)
+  current_balance         Decimal?  @db.Decimal(12, 2)
+  monthly_payment         Decimal?  @db.Decimal(10, 2)
+  current_rate            Decimal?  @db.Decimal(5, 4)
+  term_remaining          Int?
+  product_end_date        DateTime? @db.Date
+  exit_fees               String?
+  early_repayment_charges String?
+  annual_income           Decimal?  @db.Decimal(12, 2)
+  employment_status       String?   @db.VarChar(100)
+  credit_score            Int?
+  existing_debts          String?
+  disposable_income       Decimal?  @db.Decimal(10, 2)
+  available_deposit       Decimal?  @db.Decimal(12, 2)
+  primary_objective       String?   @db.VarChar(255)
+  risk_tolerance          String?   @db.VarChar(100)
+  preferred_term          Int?
+  payment_preference      String?   @db.VarChar(100)
+  timeline                String?   @db.VarChar(100)
+  additional_context      String?
+  documents_summary       String?
+  created_at              DateTime? @default(now()) @db.Timestamp(6)
+  updated_at              DateTime? @default(now()) @db.Timestamp(6)
+  chats                   chats[]
+  users                   users?    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_mortgage_scenarios_user_id")
+}
+
+model users {
+  id                 Int                  @id @default(autoincrement())
+  username           String               @unique @db.VarChar(255)
+  password_hash      String               @db.VarChar(255)
+  salt               String               @db.VarChar(255)
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamp(6)
+  chats              chats[]
+  messages           messages[]
+  mortgage_scenarios mortgage_scenarios[]
+}

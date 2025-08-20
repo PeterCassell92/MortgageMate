@@ -136,12 +136,15 @@ Ensure PostgreSQL is running locally with mortgagemate_dev database.
 - 🔲 Revisit best Document Parsing services and models for scanning in mortgage documents specifically
 - 🔲 create specialized prompts for different document types (statements, offers, valuations)
 - 🔲 Create specialized prompts when asking about certain information.
+- 🔲 Add Analyse button as a call to action when this is being offered by the chat
+- 🔲 Add Graphs to visualise some key mortgage data (for example capital owned over time)
 
 ### Low Priority
 - 🔲 Implement 'Create Analysis' functionality and result caching
 - 🔲 Design and implement analysis result templates/rendering
 - 🔲 Remove remove chat Id from Chat.tsx - Investigate, but I think that chat Id is loaded by the backend against the authenticated user.
 - ✅ Add data validation for mortgage scenario completeness
+- 🔲 Optimize LLM token usage on chat resume with conversation truncation/summarization
 
 ## Development Workflow
 
@@ -180,6 +183,7 @@ echo "ANTHROPIC_API_KEY=your-actual-key-here" >> .env
 # Then restart containers to pick up the new key
 docker-compose down && docker-compose up -d
 ```
+note. Never offer to run docker-compose commands in bash. I will do these myself. Just give me the commands.
 
 **Option 2: Direct Environment Variable**
 ```bash
@@ -194,7 +198,7 @@ Once the key is set up:
 4. **Monitor token usage tracking** with real API calls
 
 ### API Pricing Reference
-- **Claude 3.5 Sonnet**: ~$3 per 1M input tokens, ~$15 per 1M output tokens
+- **Claude 4 Sonnet**: ~$3 per 1M input tokens, ~$15 per 1M output tokens
 - **Typical chat message**: ~100-500 tokens
 - **Full mortgage analysis**: ~2,000-5,000 tokens
 - **Cost per analysis**: Usually under $0.10

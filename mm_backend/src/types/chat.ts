@@ -1,8 +1,12 @@
 export interface Chat {
   id: number;
+  chat_id: string;
+  non_unique_numerical_id: number;
   user_id: number;
   title: string;
+  overall_status: 'active' | 'inactive';
   mortgage_scenario_id?: number;
+  latest_view_time: Date;
   created_at: Date;
   updated_at: Date;
 }

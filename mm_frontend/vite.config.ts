@@ -7,5 +7,10 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true
+  },
+  resolve: {
+    alias: {
+      '@mortgagemate/models': new URL('../models', import.meta.url).pathname,
+    }
   }
 })

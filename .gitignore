@@ -44,6 +44,10 @@ coverage/
 ehthumbs.db
 Thumbs.db
 
+# Generated Prompts
+/**/prompt_output
+
 # Database
 *.sqlite
 *.db
+/generated/prisma

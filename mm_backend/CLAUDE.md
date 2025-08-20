@@ -127,17 +127,9 @@ Backend reads from root `.env` file:
 
 ## Database Models
 
-### Users Table (✅ Implemented)
-```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  username VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  salt VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+We now use Prisma for Database interactions:
+The schema can be found here : /mm_backend/prisma/schema.prisma
+
 
 **Features:**
 - Auto-updating `updated_at` timestamp via database trigger
@@ -170,7 +162,7 @@ CREATE TABLE mortgage_scenarios (
 - **CORS**: Configured for frontend domain only
 - **Helmet**: Security headers protection
 - **Input Validation**: Express built-in + custom validation
-- **SQL Injection Protection**: Parameterized queries with pg
+- **SQL Injection Protection**: Parameterized queries with pg - using Prisma for ORM layer
 
 ## Error Handling
 - Global error handler middleware

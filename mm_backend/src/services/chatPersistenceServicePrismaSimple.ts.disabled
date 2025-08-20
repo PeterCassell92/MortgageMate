@@ -1,0 +1,169 @@
+import prisma from '../utils/prisma';
+import { v4 as uuidv4 } from 'uuid';
+import { Prisma } from '@prisma/client';
+
+type Chat = Prisma.ChatGetPayload<{}>;
+
+export class ChatPersistenceServicePrismaSimple {
+  /**
+   * Create new chat session with associated mortgage scenario - simplified version
+   */
+  static async createNewChatSession(
+    userId: number, 
+    title?: string
+  ): Promise<{ chatId: string; numericalId: number }> {
+    const chatTitle = title || 'New Chat';
+    
+    return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Get next numerical ID for this user
+      const maxChat = await tx.chat.findFirst({
+        where: { userId: userId },
+        orderBy: { nonUniqueNumericalId: 'desc' }
+      });
+      const nextNumericalId = (maxChat?.nonUniqueNumericalId || 0) + 1;
+      
+      // Create mortgage scenario first
+      const mortgageScenario = await tx.mortgageScenario.create({
+        data: {
+          userId: userId,
+          name: `${chatTitle} Scenario`,
+          advisorMode: 'data_gathering'
+        }
+      });
+      
+      // Create chat with proper UUID
+      const chatUUID = uuidv4();
+      const chat = await tx.chat.create({
+        data: {
+          chatId: chatUUID,
+          userId: userId,
+          title: chatTitle,
+          mortgageScenarioId: mortgageScenario.id,
+          nonUniqueNumericalId: nextNumericalId,
+          overallStatus: 'active'
+        }
+      });
+      
+      return {
+        chatId: chatUUID,
+        numericalId: nextNumericalId
+      };
+    });
+  }
+  
+  /**
+   * Get user's chat list
+   */
+  static async getUserChats(userId: number) {
+    const chats = await prisma.chat.findMany({
+      where: {
+        userId: userId,
+        overallStatus: 'active'
+      },
+      orderBy: [
+        { latestViewTime: 'desc' },
+        { updatedAt: 'desc' }
+      ]
+    });
+    
+    return chats.map((chat: Chat) => ({
+      id: chat.id,
+      numericalId: chat.nonUniqueNumericalId,
+      title: chat.title,
+      lastViewed: chat.latestViewTime,
+      updatedAt: chat.updatedAt,
+      createdAt: chat.createdAt
+    }));
+  }
+  
+  /**
+   * Get latest chat for user
+   */
+  static async getLatestChatForUser(userId: number) {
+    const latestChat = await prisma.chat.findFirst({
+      where: {
+        userId: userId,
+        overallStatus: 'active'
+      },
+      orderBy: [
+        { latestViewTime: 'desc' },
+        { updatedAt: 'desc' }
+      ]
+    });
+    
+    if (!latestChat) {
+      return null;
+    }
+    
+    return {
+      numericalId: latestChat.nonUniqueNumericalId
+    };
+  }
+
+  /**
+   * Convert numerical ID to UUID chatId
+   */
+  static async getChatIdFromNumericalId(userId: number, numericalId: number): Promise<string | null> {
+    const chat = await prisma.chat.findFirst({
+      where: {
+        userId: userId,
+        nonUniqueNumericalId: numericalId,
+        overallStatus: 'active'
+      }
+    });
+    
+    return chat?.chatId || null;
+  }
+
+  /**
+   * Soft delete chat
+   */
+  static async softDeleteChat(chatId: string, userId: number): Promise<boolean> {
+    try {
+      const result = await prisma.chat.updateMany({
+        where: {
+          chatId: chatId,
+          userId: userId,
+          overallStatus: 'active'
+        },
+        data: {
+          overallStatus: 'inactive',
+          updatedAt: new Date()
+        }
+      });
+      
+      return result.count > 0;
+    } catch (error) {
+      console.error('Failed to soft delete chat:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Save session to database (placeholder)
+   */
+  static async saveSessionToDatabase(
+    chatId: string,
+    userId: number,
+    advisorSession: any,
+    userMessage?: string,
+    aiResponse?: string,
+    llmRequestId?: number,
+    llmResponseId?: number
+  ): Promise<void> {
+    // Placeholder - just log for now
+    console.log('saveSessionToDatabase called with chatId:', chatId);
+  }
+
+  /**
+   * Restore session from database (placeholder)
+   */
+  static async restoreSessionFromDatabase(
+    numericalId: number,
+    userId: number
+  ): Promise<any> {
+    // Placeholder - return null for now
+    console.log('restoreSessionFromDatabase called with numericalId:', numericalId);
+    return null;
+  }
+}

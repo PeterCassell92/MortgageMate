@@ -1,0 +1,23 @@
+import { PrismaClient } from '@prisma/client';
+
+declare global {
+  // Prevent multiple instances in development
+  var __prisma: PrismaClient | undefined;
+}
+
+// Create a single instance of Prisma Client
+export const prisma = globalThis.__prisma || new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+});
+
+// In development, save the instance to prevent multiple connections
+if (process.env.NODE_ENV === 'development') {
+  globalThis.__prisma = prisma;
+}
+
+// Graceful shutdown
+process.on('beforeExit', async () => {
+  await prisma.$disconnect();
+});
+
+export default prisma;

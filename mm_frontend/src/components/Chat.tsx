@@ -11,7 +11,16 @@ import {
   LinearProgress
 } from '@mui/material';
 import { Send as SendIcon, AttachFile as AttachFileIcon } from '@mui/icons-material';
-import { ChatService, ChatResponse } from '../services/chatService';
+import { useNavigate } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { 
+  loadExistingChat, 
+  createNewChat, 
+  sendMessage, 
+  addUserMessage, 
+  loadChatList 
+} from '../store/slices/chatSlice';
+import { useError } from '../contexts/ErrorContext';
 
 interface Message {
   id: string;
@@ -36,22 +45,28 @@ interface UploadedDocument {
 }
 
 interface ChatProps {
-  chatId?: string;
+  numericalId?: number;
 }
-//remove chat Id from here
-const Chat: React.FC<ChatProps> = ({ chatId }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+
+const Chat: React.FC<ChatProps> = ({ numericalId }) => {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const { 
+    messages, 
+    messagesLoading,
+    currentNumericalId, 
+    currentAdvisorMode, 
+    completenessScore, 
+    missingFields, 
+    isInitialized 
+  } = useAppSelector(state => state.chat);
+  
   const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
   const [attachedDocuments, setAttachedDocuments] = useState<UploadedDocument[]>([]);
-  const [currentAdvisorMode, setCurrentAdvisorMode] = useState<'data_gathering' | 'analysis' | 'followup'>('data_gathering');
-  const [completenessScore, setCompletenessScore] = useState(0);
-  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const { handleNetworkError } = useError();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const chatService = ChatService.getInstance();
 
   // Auto-scroll to bottom when new messages are added
   const scrollToBottom = () => {
@@ -62,55 +77,24 @@ const Chat: React.FC<ChatProps> = ({ chatId }) => {
     scrollToBottom();
   }, [messages]);
 
-  // Initialize chat with welcome message on component mount
+  // Initialize chat when numericalId changes or when first loading
   useEffect(() => {
-    const initializeChat = async () => {
-      if (isInitialized) return;
-      
-      setIsLoading(true);
-      try {
-        // TODO: Pass actual user ID from auth context
-        const response = await chatService.initializeChat();
-        
-        if (response.data?.isWelcomeMessage) {
-          const welcomeMessage: Message = {
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: response.data.message,
-            timestamp: new Date(),
-            isWelcomeMessage: true,
-            advisorMode: response.data.advisorMode,
-            completenessScore: response.data.completenessScore
-          };
-          
-          setMessages([welcomeMessage]);
-          setCurrentAdvisorMode(response.data.advisorMode || 'data_gathering');
-          setCompletenessScore(response.data.completenessScore || 0);
+    if (numericalId && numericalId !== currentNumericalId) {
+      // Load existing chat using Redux action
+      dispatch(loadExistingChat(numericalId));
+    } else if (!numericalId && !isInitialized && !currentNumericalId) {
+      // Create new chat if no specific ID and not initialized
+      dispatch(createNewChat('New Chat')).then((result) => {
+        if (result.meta.requestStatus === 'fulfilled' && result.payload?.numericalId) {
+          // Navigate to the new chat URL
+          navigate(`/dashboard/chat/${result.payload.numericalId}`, { replace: true });
         }
-        
-        setIsInitialized(true);
-      } catch (error) {
-        console.error('Failed to initialize chat:', error);
-        // Add error message
-        const errorMessage: Message = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: 'Welcome to MortgageMate! I\'m here to help you analyze your mortgage options. Let\'s start by gathering some basic information about your current mortgage.',
-          timestamp: new Date(),
-          isWelcomeMessage: true
-        };
-        setMessages([errorMessage]);
-        setIsInitialized(true);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeChat();
-  }, [isInitialized]);
+      });
+    }
+  }, [numericalId, currentNumericalId, isInitialized, dispatch, navigate]);
 
   // Categorize document based on filename and type
-  const categorizeDocument = (filename: string, mimeType: string): UploadedDocument['category'] => {
+  const categorizeDocument = (filename: string): UploadedDocument['category'] => {
     const lowerName = filename.toLowerCase();
     
     if (lowerName.includes('mortgage') || lowerName.includes('loan')) {
@@ -137,7 +121,7 @@ const Chat: React.FC<ChatProps> = ({ chatId }) => {
       name: file.name,
       type: file.type,
       size: file.size,
-      category: categorizeDocument(file.name, file.type),
+      category: categorizeDocument(file.name),
       file: file // Store the actual File object
     }));
 
@@ -158,22 +142,19 @@ const Chat: React.FC<ChatProps> = ({ chatId }) => {
   };
 
   const handleSendMessage = async () => {
-    if ((!inputValue.trim() && attachedDocuments.length === 0) || isLoading || !isInitialized) return;
+    if ((!inputValue.trim() && attachedDocuments.length === 0) || messagesLoading || !isInitialized) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: inputValue.trim() || 'Uploaded documents for analysis',
-      timestamp: new Date(),
-      documents: attachedDocuments.length > 0 ? [...attachedDocuments] : undefined
-    };
-
-    // Add user message immediately
-    setMessages(prev => [...prev, userMessage]);
-    const messageText = inputValue.trim();
+    const messageText = inputValue.trim() || 'Uploaded documents for analysis';
+    
+    // Add user message to Redux store immediately
+    dispatch(addUserMessage({ 
+      content: messageText, 
+      documents: attachedDocuments.map(doc => doc.file) 
+    }));
+    
+    // Clear input and attachments
     setInputValue('');
-    setAttachedDocuments([]); // Clear attached documents
-    setIsLoading(true);
+    setAttachedDocuments([]);
 
     try {
       // Detect if user is requesting analysis
@@ -182,43 +163,23 @@ const Chat: React.FC<ChatProps> = ({ chatId }) => {
       // Extract actual File objects from attached documents
       const documentFiles = attachedDocuments.map(doc => doc.file);
       
-      const response = await chatService.sendMessage(messageText, undefined, hasRequestedAnalysis, documentFiles.length > 0 ? documentFiles : undefined);
-
-      if (response.data) {
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: response.data.message,
-          timestamp: new Date(),
-          advisorMode: response.data.advisorMode,
-          completenessScore: response.data.completenessScore,
-          missingFields: response.data.missingFields
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-        
-        // Update state with latest advisor information
-        if (response.data.advisorMode) {
-          setCurrentAdvisorMode(response.data.advisorMode);
-        }
-        if (response.data.completenessScore !== undefined) {
-          setCompletenessScore(response.data.completenessScore);
-        }
-        if (response.data.missingFields) {
-          setMissingFields(response.data.missingFields);
-        }
-      }
-    } catch (error) {
+      // Send message using Redux action
+      await dispatch(sendMessage({
+        userMessage: messageText,
+        hasRequestedAnalysis,
+        documents: documentFiles.length > 0 ? documentFiles : undefined
+      })).unwrap();
+      
+      // Refresh chat list to update last activity
+      dispatch(loadChatList());
+      
+    } catch (error: unknown) {
       console.error('Error sending message:', error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'I apologize, but I\'m experiencing some technical difficulties. Please try again.',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
+      
+      // Check for connection errors
+      if (error instanceof Error && error.message.includes('Connection failed')) {
+        handleNetworkError(error);
+      }
     }
   };
 
@@ -401,7 +362,7 @@ const Chat: React.FC<ChatProps> = ({ chatId }) => {
               ))}
               
               {/* Loading indicator */}
-              {isLoading && (
+              {messagesLoading && (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
                   <Paper
                     elevation={0}
@@ -474,7 +435,7 @@ const Chat: React.FC<ChatProps> = ({ chatId }) => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              disabled={isLoading}
+              disabled={messagesLoading}
               variant="outlined"
               sx={{
                 '& .MuiOutlinedInput-root': {
@@ -488,7 +449,7 @@ const Chat: React.FC<ChatProps> = ({ chatId }) => {
             <Tooltip title="Attach documents (PDF, images, spreadsheets)">
               <IconButton
                 onClick={handleDocumentUploadClick}
-                disabled={isLoading}
+                disabled={messagesLoading}
                 sx={{
                   bgcolor: '#f5f5f5',
                   color: '#666',
@@ -511,7 +472,7 @@ const Chat: React.FC<ChatProps> = ({ chatId }) => {
             {/* Send Button */}
             <IconButton
               onClick={handleSendMessage}
-              disabled={(!inputValue.trim() && attachedDocuments.length === 0) || isLoading}
+              disabled={(!inputValue.trim() && attachedDocuments.length === 0) || messagesLoading}
               sx={{
                 bgcolor: '#1976d2',
                 color: 'white',

@@ -1,0 +1,352 @@
+import prisma from '../utils/prisma';
+import { v4 as uuidv4 } from 'uuid';
+import { MortgageAdvisorService, AdvisorSession } from './MortgageConversation/mortgageAdvisorService';
+import { MortgageData } from './MortgageConversation/prompts/prompt_scripts/PromptTemplate';
+import { Prisma } from '@prisma/client';
+
+export interface PersistedChatSession {
+  chatId: number;
+  numericalId: number;
+  advisorSession: AdvisorSession;
+  conversationHistory: string[];
+}
+
+export class ChatPersistenceServicePrisma {
+  /**
+   * Create new chat session with associated mortgage scenario
+   */
+  static async createNewChatSession(
+    userId: number, 
+    title?: string
+  ): Promise<{ chatId: string; numericalId: number }> {
+    const chatTitle = title || 'New Chat';
+    
+    return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Get next numerical ID for this user
+      const maxNumericalId = await tx.chat.aggregate({
+        where: { userId: userId },
+        _max: { nonUniqueNumericalId: true }
+      });
+      const nextNumericalId = (maxNumericalId._max.nonUniqueNumericalId || 0) + 1;
+      
+      // Create mortgage scenario first
+      const mortgageScenario = await tx.mortgageScenario.create({
+        data: {
+          userId: userId,
+          name: `${chatTitle} Scenario`,
+          advisorMode: 'data_gathering'
+        }
+      });
+      
+      // Create chat with proper UUID
+      const chatUUID = uuidv4();
+      const chat = await tx.chat.create({
+        data: {
+          chatId: chatUUID,
+          userId: userId,
+          title: chatTitle,
+          mortgageScenarioId: mortgageScenario.id,
+          nonUniqueNumericalId: nextNumericalId,
+          overallStatus: 'active'
+        }
+      });
+      
+      return {
+        chatId: chatUUID,
+        numericalId: nextNumericalId
+      };
+    });
+  }
+  
+  /**
+   * Save chat session with messages and advisor data
+   */
+  static async saveSessionToDatabase(
+    chatId: string,
+    userId: number,
+    advisorSession: AdvisorSession,
+    userMessage?: string,
+    aiResponse?: string,
+    llmRequestId?: number,
+    llmResponseId?: number
+  ): Promise<void> {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Find chat by UUID
+      const chat = await tx.chat.findFirst({
+        where: { 
+          chatId: chatId,
+          userId: userId 
+        },
+        include: { mortgageScenario: true }
+      });
+      
+      if (!chat || !chat.mortgageScenario) {
+        throw new Error(`Chat not found for UUID: ${chatId}`);
+      }
+      
+      // Update latest view time
+      await tx.chat.update({
+        where: { id: chat.id },
+        data: { latestViewTime: new Date() }
+      });
+      
+      // Update mortgage scenario with advisor session data
+      await this.saveAdvisorSessionToMortgageScenario(
+        tx,
+        chat.mortgageScenario.id,
+        advisorSession
+      );
+      
+      // Save messages if provided
+      if (userMessage) {
+        await tx.message.create({
+          data: {
+            chatId: chat.id,
+            userId: userId,
+            fromUser: 'user',
+            toUser: 'assistant',
+            messageBody: userMessage,
+            llmRequestId: llmRequestId
+          }
+        });
+      }
+      
+      if (aiResponse) {
+        await tx.message.create({
+          data: {
+            chatId: chat.id,
+            userId: userId,
+            fromUser: 'assistant',
+            toUser: 'user',
+            messageBody: aiResponse,
+            llmResponseId: llmResponseId
+          }
+        });
+      }
+    });
+  }
+  
+  /**
+   * Restore chat session by numerical ID
+   */
+  static async restoreSessionFromDatabase(
+    numericalId: number,
+    userId: number
+  ): Promise<PersistedChatSession | null> {
+    const chat = await prisma.chat.findFirst({
+      where: {
+        nonUniqueNumericalId: numericalId,
+        userId: userId,
+        overallStatus: 'active'
+      },
+      include: {
+        mortgageScenario: true,
+        messages: {
+          orderBy: { createdAt: 'asc' }
+        }
+      }
+    });
+    
+    if (!chat || !chat.mortgageScenario) {
+      return null;
+    }
+    
+    // Update latest view time
+    await prisma.chat.update({
+      where: { id: chat.id },
+      data: { latestViewTime: new Date() }
+    });
+    
+    // Reconstruct conversation history
+    const conversationHistory = chat.messages.map((msg: any) => {
+      const role = msg.fromUser === 'user' ? 'User' : 'AI';
+      return `${role}: ${msg.messageBody}`;
+    });
+    
+    // Convert mortgage scenario data to MortgageData format
+    const mortgageData = this.convertScenarioToMortgageData(chat.mortgageScenario);
+    
+    // Reconstruct advisor session
+    const advisorSession: AdvisorSession = {
+      mode: (chat.mortgageScenario.advisorMode as any) || 'data_gathering',
+      mortgageData,
+      conversationHistory,
+      lastAnalysis: undefined, // TODO: Implement analysis retrieval
+      completenessScore: MortgageAdvisorService.calculateCompleteness(mortgageData)
+    };
+    
+    return {
+      chatId: chat.id,
+      numericalId: chat.nonUniqueNumericalId,
+      advisorSession,
+      conversationHistory
+    };
+  }
+  
+  /**
+   * Get user's chat list
+   */
+  static async getUserChats(userId: number): Promise<any[]> {
+    const chats = await prisma.chat.findMany({
+      where: {
+        userId: userId,
+        overallStatus: 'active'
+      },
+      orderBy: [
+        { latestViewTime: 'desc' },
+        { updatedAt: 'desc' }
+      ]
+    });
+    
+    return chats.map((chat: any) => ({
+      id: chat.id,
+      numericalId: chat.nonUniqueNumericalId,
+      title: chat.title,
+      lastViewed: chat.latestViewTime,
+      updatedAt: chat.updatedAt,
+      createdAt: chat.createdAt
+    }));
+  }
+  
+  /**
+   * Get latest chat for user
+   */
+  static async getLatestChatForUser(userId: number): Promise<{ numericalId: number } | null> {
+    const latestChat = await prisma.chat.findFirst({
+      where: {
+        userId: userId,
+        overallStatus: 'active'
+      },
+      orderBy: [
+        { latestViewTime: 'desc' },
+        { updatedAt: 'desc' }
+      ]
+    });
+    
+    if (!latestChat) {
+      return null;
+    }
+    
+    return {
+      numericalId: latestChat.nonUniqueNumericalId
+    };
+  }
+  
+  /**
+   * Convert numerical ID to UUID chatId
+   */
+  static async getChatIdFromNumericalId(userId: number, numericalId: number): Promise<string | null> {
+    const chat = await prisma.chat.findFirst({
+      where: {
+        userId: userId,
+        nonUniqueNumericalId: numericalId,
+        overallStatus: 'active'
+      }
+    });
+    
+    return chat?.chatId || null;
+  }
+  
+  /**
+   * Soft delete chat
+   */
+  static async softDeleteChat(chatId: string, userId: number): Promise<boolean> {
+    try {
+      const result = await prisma.chat.updateMany({
+        where: {
+          chatId: chatId,
+          userId: userId,
+          overallStatus: 'active'
+        },
+        data: {
+          overallStatus: 'inactive',
+          updatedAt: new Date()
+        }
+      });
+      
+      return result.count > 0;
+    } catch (error) {
+      console.error('Failed to soft delete chat:', error);
+      return false;
+    }
+  }
+  
+  // Private helper methods
+  
+  private static async saveAdvisorSessionToMortgageScenario(
+    tx: Prisma.TransactionClient,
+    scenarioId: number,
+    advisorSession: AdvisorSession
+  ): Promise<void> {
+    const data = advisorSession.mortgageData;
+    const stage = MortgageAdvisorService.getConversationStage(advisorSession);
+    const priority = MortgageAdvisorService.getCurrentPriority(advisorSession);
+    
+    await tx.mortgageScenario.update({
+      where: { id: scenarioId },
+      data: {
+        advisorMode: advisorSession.mode,
+        conversationStage: stage,
+        currentPriority: priority,
+        propertyLocation: data.propertyLocation,
+        propertyType: data.propertyType,
+        propertyValue: data.propertyValue,
+        propertyUse: data.propertyUse,
+        currentLender: data.currentLender,
+        mortgageType: data.mortgageType,
+        currentBalance: data.currentBalance,
+        monthlyPayment: data.monthlyPayment,
+        currentRate: data.currentRate,
+        termRemaining: data.termRemaining,
+        productEndDate: data.productEndDate,
+        exitFees: data.exitFees,
+        earlyRepaymentCharges: data.earlyRepaymentCharges,
+        annualIncome: data.annualIncome,
+        employmentStatus: data.employmentStatus,
+        creditScore: data.creditScore,
+        existingDebts: data.existingDebts,
+        disposableIncome: data.disposableIncome,
+        availableDeposit: data.availableDeposit,
+        primaryObjective: data.primaryObjective,
+        riskTolerance: data.riskTolerance,
+        preferredTerm: data.preferredTerm,
+        paymentPreference: data.paymentPreference,
+        timeline: data.timeline,
+        additionalContext: data.additionalContext,
+        documentsSummary: data.documentsSummary,
+        updatedAt: new Date()
+      }
+    });
+  }
+  
+  private static convertScenarioToMortgageData(scenario: any): Partial<MortgageData> {
+    return {
+      propertyLocation: scenario.propertyLocation,
+      propertyType: scenario.propertyType,
+      propertyValue: scenario.propertyValue,
+      propertyUse: scenario.propertyUse,
+      currentLender: scenario.currentLender,
+      mortgageType: scenario.mortgageType,
+      currentBalance: scenario.currentBalance,
+      monthlyPayment: scenario.monthlyPayment,
+      currentRate: scenario.currentRate,
+      termRemaining: scenario.termRemaining,
+      productEndDate: scenario.productEndDate,
+      exitFees: scenario.exitFees,
+      earlyRepaymentCharges: scenario.earlyRepaymentCharges,
+      annualIncome: scenario.annualIncome,
+      employmentStatus: scenario.employmentStatus,
+      creditScore: scenario.creditScore,
+      existingDebts: scenario.existingDebts,
+      disposableIncome: scenario.disposableIncome,
+      availableDeposit: scenario.availableDeposit,
+      primaryObjective: scenario.primaryObjective,
+      riskTolerance: scenario.riskTolerance,
+      preferredTerm: scenario.preferredTerm,
+      paymentPreference: scenario.paymentPreference,
+      timeline: scenario.timeline,
+      additionalContext: scenario.additionalContext,
+      documentsSummary: scenario.documentsSummary
+    };
+  }
+}

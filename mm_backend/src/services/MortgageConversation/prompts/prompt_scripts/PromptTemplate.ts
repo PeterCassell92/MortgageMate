@@ -1,43 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-
-export interface MortgageData {
-  // Property Information
-  propertyLocation?: string;
-  propertyType?: string;
-  propertyValue?: number;
-  propertyUse?: string;
-
-  // Current Mortgage
-  currentLender?: string;
-  mortgageType?: string;
-  currentBalance?: number;
-  monthlyPayment?: number;
-  currentRate?: number;
-  termRemaining?: number;
-  productEndDate?: string;
-  exitFees?: string;
-  earlyRepaymentCharges?: string;
-
-  // Financial Situation
-  annualIncome?: number;
-  employmentStatus?: string;
-  creditScore?: string;
-  existingDebts?: number;
-  disposableIncome?: number;
-  availableDeposit?: number;
-
-  // Goals & Preferences
-  primaryObjective?: string;
-  riskTolerance?: string;
-  preferredTerm?: number;
-  paymentPreference?: string;
-  timeline?: string;
-
-  // Additional Context
-  additionalContext?: string;
-  documentsSummary?: string;
-}
+// Import shared MortgageData interface from models
+import type { MortgageData } from '@mortgagemate/models';
 
 export interface ConversationContext {
   collectedData?: Partial<MortgageData>;

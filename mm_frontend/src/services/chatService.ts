@@ -1,30 +1,45 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4321';
-
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
+import apiClient, { uploadApi } from './apiClient';
+import type { MortgageData } from '@mortgagemate/models';
 
 export interface ChatResponse {
   success: boolean;
   data?: {
     chatId?: string;
+    numericalId?: number;
     message: string;
     isWelcomeMessage?: boolean;
-    advisorMode?: 'data_gathering' | 'analysis' | 'followup';
+    advisorMode?: string;
     completenessScore?: number;
-    extractedData?: any;
+    extractedData?: Partial<MortgageData>;
     missingFields?: string[];
+    documentResults?: any[];
     usage?: {
-      inputTokens: number;
-      outputTokens: number;
+      promptTokens: number;
+      completionTokens: number;
       totalTokens: number;
     };
-    provider: string;
-    model: string;
-    analysis?: string;
+    provider?: string;
+    model?: string;
   };
   error?: string;
+}
+
+export interface ChatListResponse {
+  success: boolean;
+  data?: {
+    chats: ChatSummary[];
+    latestChatId: number | null;
+  };
+  error?: string;
+}
+
+export interface ChatSummary {
+  id: number;
+  numericalId: number;
+  title: string;
+  lastViewed: string;
+  updatedAt: string;
+  createdAt: string;
 }
 
 export interface ChatConfig {
@@ -40,6 +55,7 @@ export interface ChatConfig {
 export class ChatService {
   private static instance: ChatService;
   private chatId: string | null = null;
+  private numericalId: number | null = null;
 
   public static getInstance(): ChatService {
     if (!ChatService.instance) {
@@ -48,141 +64,197 @@ export class ChatService {
     return ChatService.instance;
   }
 
-  async initializeChat(userId?: string): Promise<ChatResponse> {
+  // Getter methods
+  getCurrentChatId(): string | null {
+    return this.chatId;
+  }
+
+  getCurrentNumericalId(): number | null {
+    return this.numericalId;
+  }
+
+  // Clear current chat session
+  clearCurrentSession(): void {
+    this.chatId = null;
+    this.numericalId = null;
+  }
+
+  // Set current chat session
+  setCurrentSession(chatId: string, numericalId: number): void {
+    this.chatId = chatId;
+    this.numericalId = numericalId;
+  }
+
+  // Get user's chat list - LOOK HOW CLEAN THIS IS NOW!
+  async getChatList(): Promise<ChatListResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/initialize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId // TODO: Get from auth context instead
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const { data } = await apiClient.get<ChatListResponse>('/api/chat/list');
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get chat list');
       }
+      
+      return data;
+    } catch (error: unknown) {
+      console.error('Failed to get chat list:', error);
+      throw error;
+    }
+  }
 
-      const data: ChatResponse = await response.json();
+  // Create new chat - SO MUCH CLEANER!
+  async createNewChat(title?: string): Promise<ChatResponse> {
+    try {
+      const { data } = await apiClient.post<ChatResponse>('/api/chat/create', {
+        title: title || 'New Chat'
+      });
       
       if (!data.success) {
         throw new Error(data.error || 'Unknown error occurred');
       }
 
-      // Store chat ID for future requests
+      // Store chat ID and numerical ID if present
       if (data.data?.chatId) {
         this.chatId = data.data.chatId;
       }
+      if (data.data?.numericalId) {
+        this.numericalId = data.data.numericalId;
+      }
 
       return data;
-      
-    } catch (error) {
-      console.error('Chat initialization error:', error);
-      throw new Error(`Failed to initialize chat: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (error: unknown) {
+      console.error('Failed to create new chat:', error);
+      throw error;
     }
   }
 
-  async sendMessage(userMessage: string, chatId?: string, hasRequestedAnalysis?: boolean, documents?: File[]): Promise<ChatResponse> {
+  // Load existing chat
+  async loadChat(numericalId: number): Promise<ChatResponse> {
     try {
-      const formData = new FormData();
+      const { data } = await apiClient.post<ChatResponse>(`/api/chat/${numericalId}/load`);
       
-      // Add text data
-      formData.append('chatId', this.chatId || chatId || '');
-      if (userMessage) {
-        formData.append('userMessage', userMessage);
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load chat');
       }
-      if (hasRequestedAnalysis) {
-        formData.append('hasRequestedAnalysis', 'true');
+
+      // Update stored IDs
+      if (data.data?.chatId) {
+        this.chatId = data.data.chatId;
+        this.numericalId = numericalId;
       }
+
+      return data;
+    } catch (error: unknown) {
+      console.error('Failed to load chat:', error);
+      throw error;
+    }
+  }
+
+  // Delete chat
+  async deleteChat(numericalId: number): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      const { data } = await apiClient.post(`/api/chat/${numericalId}/delete`);
       
-      // Add documents if any
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to delete chat');
+      }
+
+      // Clear current session if deleted chat was active
+      if (this.numericalId === numericalId) {
+        this.clearCurrentSession();
+      }
+
+      return data;
+    } catch (error: unknown) {
+      console.error('Failed to delete chat:', error);
+      throw error;
+    }
+  }
+
+  // Send message to chat (with optional document uploads)
+  async sendMessage(
+    message: string, 
+    documents?: File[],
+    hasRequestedAnalysis: boolean = false
+  ): Promise<ChatResponse> {
+    try {
+      if (!this.numericalId) {
+        throw new Error('No active chat session. Please create or load a chat first.');
+      }
+
+      let response;
+      
       if (documents && documents.length > 0) {
-        documents.forEach(doc => {
+        // Use FormData for file uploads
+        const formData = new FormData();
+        formData.append('userMessage', message);
+        formData.append('hasRequestedAnalysis', String(hasRequestedAnalysis));
+        
+        documents.forEach((doc, index) => {
           formData.append('documents', doc);
         });
+
+        const { data } = await uploadApi.post<ChatResponse>(
+          `/api/chat/${this.numericalId}`,
+          formData
+        );
+        response = data;
+      } else {
+        // Regular JSON request
+        const { data } = await apiClient.post<ChatResponse>(
+          `/api/chat/${this.numericalId}`,
+          {
+            userMessage: message,
+            hasRequestedAnalysis
+          }
+        );
+        response = data;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
-        method: 'POST',
-        body: formData, // No Content-Type header - let browser set it for FormData
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to send message');
+      }
+
+      return response;
+    } catch (error: unknown) {
+      console.error('Failed to send message:', error);
+      throw error;
+    }
+  }
+
+  // Mortgage analysis endpoint
+  async analyzeMortgage(mortgageData: Partial<MortgageData>, userQuestion: string): Promise<ChatResponse> {
+    try {
+      const { data } = await apiClient.post<ChatResponse>('/api/chat/mortgage-analysis', {
+        mortgageData,
+        userQuestion
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: ChatResponse = await response.json();
-      
       if (!data.success) {
-        throw new Error(data.error || 'Unknown error occurred');
-      }
-
-      // Store chat ID for future requests  
-      if (data.data?.chatId) {
-        this.chatId = data.data.chatId;
+        throw new Error(data.error || 'Analysis failed');
       }
 
       return data;
-      
-    } catch (error) {
-      console.error('Chat service error:', error);
-      throw new Error(`Failed to send message: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (error: unknown) {
+      console.error('Mortgage analysis failed:', error);
+      throw error;
     }
   }
 
-  async sendMortgageAnalysis(mortgageData: any, userQuestion: string): Promise<string> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/mortgage-analysis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          mortgageData,
-          userQuestion
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: ChatResponse = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Unknown error occurred');
-      }
-
-      return data.data?.message || data.data?.analysis || 'I apologize, but I didn\'t receive a proper analysis.';
-      
-    } catch (error) {
-      console.error('Mortgage analysis service error:', error);
-      throw new Error(`Failed to analyze mortgage: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
+  // Get chat configuration
   async getConfig(): Promise<ChatConfig> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/config`);
+      const { data } = await apiClient.get<ChatConfig>('/api/chat/config');
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!data.success) {
+        throw new Error('Failed to get configuration');
       }
 
-      return await response.json();
-      
-    } catch (error) {
-      console.error('Chat config service error:', error);
-      return {
-        success: false,
-        data: {
-          provider: 'unknown',
-          mockMode: true,
-          hasAnthropicKey: false,
-          hasOpenAIKey: false
-        }
-      };
+      return data;
+    } catch (error: unknown) {
+      console.error('Failed to get config:', error);
+      throw error;
     }
   }
 }
+
+export default ChatService;

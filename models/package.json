@@ -1,0 +1,15 @@
+{
+  "name": "@mortgagemate/models",
+  "version": "1.0.0",
+  "description": "Shared TypeScript models for MortgageMate application",
+  "main": "index.ts",
+  "types": "index.ts",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
