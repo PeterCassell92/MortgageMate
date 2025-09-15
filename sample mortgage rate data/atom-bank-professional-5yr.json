@@ -1,0 +1,17 @@
+{
+  "provider_name": "Atom Bank",
+  "product_name": "Professional 5 Year Fixed",
+  "rate": 4.34,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 90,
+  "product_fee": 900,
+  "exit_fees": "5% in year 1, 4% in year 2, 3% in year 3, 2% in year 4, 1% in year 5",
+  "terms": "5 year fixed for professionals (doctors, lawyers, accountants, etc). Up to 5.5x income multiple. App-based service",
+  "description": "Enhanced terms for qualified professionals",
+  "initial_period_months": 60,
+  "reversion_rate": 7.84,
+  "max_loan": 1500000,
+  "min_loan": 75000,
+  "professional_mortgage": true
+}

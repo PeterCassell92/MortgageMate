@@ -1,0 +1,16 @@
+{
+  "provider_name": "HSBC",
+  "product_name": "Premier 2 Year Fixed",
+  "rate": 4.49,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 60,
+  "product_fee": 999,
+  "exit_fees": "Early repayment charge of 2% of amount repaid in year 1, 1% in year 2",
+  "terms": "2 year fixed rate. Min loan £25,000. Max loan £2,000,000. Available for purchase and remortgage. Free valuation and legal service for remortgage",
+  "description": "Exclusive 2-year fixed rate for Premier customers with low LTV",
+  "initial_period_months": 24,
+  "reversion_rate": 7.94,
+  "max_loan": 2000000,
+  "min_loan": 25000
+}

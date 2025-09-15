@@ -1,0 +1,17 @@
+{
+  "provider_name": "Yorkshire Building Society",
+  "product_name": "Buy to Let 5 Year Fixed",
+  "rate": 5.19,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 75,
+  "product_fee": 1995,
+  "exit_fees": "5% of amount repaid years 1-3, 3% year 4, 2% year 5",
+  "terms": "5 year fixed for buy-to-let properties. Minimum rental coverage 125% at 5.5% stress rate. Portfolio landlords accepted",
+  "description": "Competitive buy-to-let fixed rate",
+  "initial_period_months": 60,
+  "reversion_rate": 8.84,
+  "max_loan": 2000000,
+  "min_loan": 45000,
+  "property_type": "buy-to-let"
+}

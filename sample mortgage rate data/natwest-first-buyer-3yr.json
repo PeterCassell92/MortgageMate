@@ -1,0 +1,17 @@
+{
+  "provider_name": "NatWest",
+  "product_name": "First Time Buyer 3 Year Fixed",
+  "rate": 4.89,
+  "rate_type": "fixed",
+  "ltv_min": 85,
+  "ltv_max": 95,
+  "product_fee": 0,
+  "exit_fees": "5% of amount repaid in year 1, 4% in year 2, 3% in year 3",
+  "terms": "3 year fixed exclusively for first time buyers. £250 cashback. Free standard valuation. Maximum 4.5x income multiple",
+  "description": "High LTV product for first time buyers with cashback",
+  "initial_period_months": 36,
+  "reversion_rate": 7.19,
+  "max_loan": 500000,
+  "min_loan": 5000,
+  "cashback": 250
+}

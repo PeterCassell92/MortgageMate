@@ -1,0 +1,17 @@
+{
+  "provider_name": "Skipton Building Society",
+  "product_name": "Track Record 2 Year Fixed",
+  "rate": 5.49,
+  "rate_type": "fixed",
+  "ltv_min": 95,
+  "ltv_max": 100,
+  "product_fee": 0,
+  "exit_fees": "3% of mortgage balance if redeemed within fixed period",
+  "terms": "100% LTV for renters with 12+ months good payment history. No deposit required. First-time buyers only. Proof of rental payments required",
+  "description": "Unique 100% mortgage for proven renters",
+  "initial_period_months": 24,
+  "reversion_rate": 8.49,
+  "max_loan": 600000,
+  "min_loan": 80000,
+  "special_criteria": "rental-history"
+}

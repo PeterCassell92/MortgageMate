@@ -1,0 +1,17 @@
+{
+  "provider_name": "Monzo Bank",
+  "product_name": "Digital 3 Year Fixed",
+  "rate": 4.69,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 80,
+  "product_fee": 0,
+  "exit_fees": "2% of amount repaid in years 1-2, 1% in year 3",
+  "terms": "3 year fixed with fully digital application. Real-time tracking in app. Instant decision. Automated valuation only",
+  "description": "Fully digital mortgage with app integration",
+  "initial_period_months": 36,
+  "reversion_rate": 7.69,
+  "max_loan": 750000,
+  "min_loan": 50000,
+  "digital_only": true
+}

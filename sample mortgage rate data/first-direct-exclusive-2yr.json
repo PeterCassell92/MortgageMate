@@ -1,0 +1,17 @@
+{
+  "provider_name": "First Direct",
+  "product_name": "Exclusive 2 Year Fixed",
+  "rate": 4.44,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 65,
+  "product_fee": 490,
+  "exit_fees": "1% of outstanding balance if redeemed during fixed period",
+  "terms": "2 year fixed exclusive to First Direct 1st Account holders. Telephone and online service only. Free valuation up to £1500",
+  "description": "Exclusive rate for existing customers",
+  "initial_period_months": 24,
+  "reversion_rate": 7.49,
+  "max_loan": 1000000,
+  "min_loan": 10000,
+  "exclusive": true
+}

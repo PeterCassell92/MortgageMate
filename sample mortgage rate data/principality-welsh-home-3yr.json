@@ -1,0 +1,17 @@
+{
+  "provider_name": "Principality Building Society",
+  "product_name": "Welsh Home 3 Year Fixed",
+  "rate": 4.74,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 85,
+  "product_fee": 999,
+  "exit_fees": "3% of balance year 1, 2% year 2, 1% year 3",
+  "terms": "3 year fixed for properties in Wales. Welsh language service available. Support for local communities. Free basic valuation",
+  "description": "Regional building society supporting Welsh homeowners",
+  "initial_period_months": 36,
+  "reversion_rate": 7.74,
+  "max_loan": 1000000,
+  "min_loan": 25000,
+  "region_specific": "wales"
+}

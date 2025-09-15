@@ -1,0 +1,16 @@
+{
+  "provider_name": "Halifax",
+  "product_name": "Large Loan 5 Year Fixed",
+  "rate": 4.14,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 60,
+  "product_fee": 1999,
+  "exit_fees": "5% until 31/03/2026, 4% until 31/03/2027, 3% until 31/03/2028, 2% until 31/03/2029, 1% until 31/03/2030",
+  "terms": "5 year fixed for loans over £500,000. Enhanced rates for Halifax Reward current account holders. 20% annual overpayment allowance",
+  "description": "Premium product for large loans with competitive rates",
+  "initial_period_months": 60,
+  "reversion_rate": 7.99,
+  "max_loan": 5000000,
+  "min_loan": 500000
+}

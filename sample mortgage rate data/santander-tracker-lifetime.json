@@ -1,0 +1,17 @@
+{
+  "provider_name": "Santander",
+  "product_name": "Lifetime Tracker",
+  "rate": 5.74,
+  "rate_type": "tracker",
+  "ltv_min": 0,
+  "ltv_max": 85,
+  "product_fee": 999,
+  "exit_fees": "No early repayment charges",
+  "terms": "Tracks Bank of England base rate + 0.49% for life of mortgage. No collar. 10% overpayment allowance per year",
+  "description": "Lifetime tracker with no early repayment charges",
+  "initial_period_months": null,
+  "reversion_rate": null,
+  "max_loan": 1000000,
+  "min_loan": 25000,
+  "tracker_margin": 0.49
+}

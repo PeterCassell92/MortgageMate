@@ -1,0 +1,16 @@
+{
+  "provider_name": "Barclays",
+  "product_name": "Green Home 5 Year Fixed",
+  "rate": 4.24,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 75,
+  "product_fee": 0,
+  "exit_fees": "3% of amount repaid for first 3 years, 2% in year 4, 1% in year 5",
+  "terms": "5 year fixed rate for energy efficient homes (EPC A or B). Purchase only. Free standard valuation. Minimum property value £75,000",
+  "description": "Special rate for energy efficient homes with no product fee",
+  "initial_period_months": 60,
+  "reversion_rate": 8.24,
+  "max_loan": 1000000,
+  "min_loan": 5000
+}

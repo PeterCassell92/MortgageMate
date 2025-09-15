@@ -1,0 +1,17 @@
+{
+  "provider_name": "The Co-operative Bank",
+  "product_name": "Ethical 3 Year Fixed",
+  "rate": 4.79,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 75,
+  "product_fee": 499,
+  "exit_fees": "3% of balance in year 1, 2% in year 2, 1% in year 3",
+  "terms": "3 year fixed with ethical banking promise. Supports renewable energy and community projects. Free standard valuation",
+  "description": "Ethical mortgage supporting sustainable projects",
+  "initial_period_months": 36,
+  "reversion_rate": 7.89,
+  "max_loan": 750000,
+  "min_loan": 25000,
+  "ethical": true
+}

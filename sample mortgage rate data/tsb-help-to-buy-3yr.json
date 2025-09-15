@@ -1,0 +1,17 @@
+{
+  "provider_name": "TSB",
+  "product_name": "Help to Buy 3 Year Fixed",
+  "rate": 5.29,
+  "rate_type": "fixed",
+  "ltv_min": 75,
+  "ltv_max": 95,
+  "product_fee": 0,
+  "exit_fees": "3% of amount repaid during fixed rate period",
+  "terms": "3 year fixed for Help to Buy scheme participants. Free valuation. Maximum loan 4.5x joint income. Available in England only",
+  "description": "Specialized product for Help to Buy scheme",
+  "initial_period_months": 36,
+  "reversion_rate": 7.74,
+  "max_loan": 600000,
+  "min_loan": 25000,
+  "scheme": "help-to-buy"
+}

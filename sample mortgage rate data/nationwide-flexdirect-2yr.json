@@ -1,0 +1,17 @@
+{
+  "provider_name": "Nationwide",
+  "product_name": "FlexDirect 2 Year Tracker",
+  "rate": 5.49,
+  "rate_type": "tracker",
+  "ltv_min": 0,
+  "ltv_max": 75,
+  "product_fee": 999,
+  "exit_fees": "Early repayment charge of 1% if redeemed within 2 years",
+  "terms": "2 year tracker at base rate + 0.24%. Includes FlexDirect current account benefits. Unlimited overpayments allowed",
+  "description": "Tracker mortgage with current account benefits",
+  "initial_period_months": 24,
+  "reversion_rate": 7.74,
+  "max_loan": 2000000,
+  "min_loan": 5000,
+  "tracker_margin": 0.24
+}

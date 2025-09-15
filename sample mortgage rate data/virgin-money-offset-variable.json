@@ -1,0 +1,17 @@
+{
+  "provider_name": "Virgin Money",
+  "product_name": "Offset Variable Rate",
+  "rate": 6.79,
+  "rate_type": "variable",
+  "ltv_min": 0,
+  "ltv_max": 85,
+  "product_fee": 995,
+  "exit_fees": "No early repayment charges",
+  "terms": "Variable rate offset mortgage. Link up to 10 savings accounts. Interest calculated daily. Unlimited overpayments",
+  "description": "Offset mortgage allowing savings to reduce interest",
+  "initial_period_months": null,
+  "reversion_rate": null,
+  "max_loan": 1000000,
+  "min_loan": 25000,
+  "offset": true
+}

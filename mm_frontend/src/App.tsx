@@ -9,7 +9,6 @@ import { ErrorProvider, useError } from './contexts/ErrorContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
-import ChatPage from './pages/ChatPage';
 import ConnectionErrorModal from './components/ConnectionErrorModal';
 
 // Create Material-UI theme

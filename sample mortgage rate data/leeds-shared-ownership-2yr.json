@@ -1,0 +1,17 @@
+{
+  "provider_name": "Leeds Building Society",
+  "product_name": "Shared Ownership 2 Year Fixed",
+  "rate": 5.09,
+  "rate_type": "fixed",
+  "ltv_min": 0,
+  "ltv_max": 95,
+  "product_fee": 999,
+  "exit_fees": "2% of mortgage balance during fixed period",
+  "terms": "2 year fixed for shared ownership properties. Minimum 25% share. Staircasing allowed. Maximum 4.5x income",
+  "description": "Specialist shared ownership mortgage",
+  "initial_period_months": 24,
+  "reversion_rate": 7.99,
+  "max_loan": 500000,
+  "min_loan": 30000,
+  "scheme": "shared-ownership"
+}

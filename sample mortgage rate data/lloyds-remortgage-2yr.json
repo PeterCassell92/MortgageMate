@@ -1,0 +1,17 @@
+{
+  "provider_name": "Lloyds Bank",
+  "product_name": "Remortgage 2 Year Fixed",
+  "rate": 4.64,
+  "rate_type": "fixed",
+  "ltv_min": 60,
+  "ltv_max": 80,
+  "product_fee": 999,
+  "exit_fees": "3% of outstanding balance if redeemed in first year, 2% in second year",
+  "terms": "2 year fixed rate for remortgage only. Free valuation and standard legal fees. £500 cashback on completion",
+  "description": "Competitive remortgage deal with free legals and cashback",
+  "initial_period_months": 24,
+  "reversion_rate": 8.24,
+  "max_loan": 1000000,
+  "min_loan": 25000,
+  "cashback": 500
+}
