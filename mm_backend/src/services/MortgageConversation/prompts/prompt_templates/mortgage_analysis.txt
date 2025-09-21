@@ -38,6 +38,9 @@ You are a professional mortgage advisor with extensive experience in UK mortgage
 ## Documents Provided
 {{DOCUMENTS_SUMMARY}}
 
+## Market Research Results
+{{MARKET_DATA}}
+
 ---
 
 ## Analysis Requirements
@@ -50,23 +53,23 @@ Please provide a comprehensive mortgage analysis covering:
 - Identify any immediate concerns or upcoming rate changes
 
 ### 2. Market Analysis
-- Compare current rate against market averages
-- Identify suitable alternative products based on their profile
+- Compare current rate against market averages shown above
+- Reference the {{COMPETING_PRODUCTS_COUNT}} most relevant products found in market research
 - Consider current market trends and rate predictions
 
 ### 3. Remortgage Opportunities
-- Calculate potential savings from remortgaging
+- Calculate potential savings from the specific products listed in Market Research Results
 - Factor in all associated costs (fees, legal, valuation, etc.)
 - Provide break-even analysis showing when savings begin
 - Consider different LTV bands and their impact
 
 ### 4. Product Recommendations
-Recommend 3-5 specific mortgage products including:
-- Lender name and product details
-- Interest rates and terms
-- Monthly payment calculations
-- Total cost comparisons
-- Pros and cons of each option
+From the Market Research Results above, recommend the most suitable products:
+- Focus on the products that best match their profile and objectives
+- Calculate actual monthly payments using their loan amount
+- Compare total costs including all fees
+- Provide specific reasoning for each recommendation
+- Consider exit fees from current mortgage vs. savings from new products
 
 ### 5. Financial Impact Analysis
 - Monthly payment changes (increase/decrease)

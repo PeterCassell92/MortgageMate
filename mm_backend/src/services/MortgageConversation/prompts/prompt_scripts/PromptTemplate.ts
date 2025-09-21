@@ -17,9 +17,12 @@ export interface ConversationContext {
   currentFocus?: string;
   decisionPoints?: string[];
   nextActions?: string[];
+  marketData?: string;
+  searchQuery?: string;
+  competingProductsCount?: number;
 }
 
-export type PromptTemplateType = 'mortgage_analysis' | 'data_gathering' | 'analysis_followup';
+export type PromptTemplateType = 'mortgage_analysis' | 'data_gathering' | 'analysis_followup' | 'search_query_generation';
 
 export class PromptTemplate {
   private static readonly TEMPLATES_DIR = path.join(__dirname, '..', 'prompt_templates');
@@ -65,6 +68,11 @@ export class PromptTemplate {
   }
 
   private static replaceMortgageDataPlaceholders(template: string, data: MortgageData): string {
+    // Calculate LTV if possible
+    const ltv = (data.currentBalance && data.propertyValue)
+      ? ((data.currentBalance / data.propertyValue) * 100).toFixed(1)
+      : 'Unknown';
+
     const replacements: { [key: string]: string } = {
       '{{PROPERTY_LOCATION}}': data.propertyLocation || 'Not specified',
       '{{PROPERTY_TYPE}}': data.propertyType || 'Not specified',
@@ -91,7 +99,8 @@ export class PromptTemplate {
       '{{PAYMENT_PREFERENCE}}': data.paymentPreference || 'Not specified',
       '{{TIMELINE}}': data.timeline || 'Not specified',
       '{{ADDITIONAL_CONTEXT}}': data.additionalContext || 'None provided',
-      '{{DOCUMENTS_SUMMARY}}': data.documentsSummary || 'No documents provided'
+      '{{DOCUMENTS_SUMMARY}}': data.documentsSummary || 'No documents provided',
+      '{{LTV}}': ltv
     };
 
     let result = template;
@@ -116,7 +125,10 @@ export class PromptTemplate {
       '{{NEW_INFORMATION}}': context.newInformation || 'No new information provided',
       '{{CURRENT_FOCUS}}': context.currentFocus || 'General mortgage review',
       '{{DECISION_POINTS}}': context.decisionPoints?.join('; ') || 'No major decisions pending',
-      '{{NEXT_ACTIONS}}': context.nextActions?.join('; ') || 'Continue information gathering'
+      '{{NEXT_ACTIONS}}': context.nextActions?.join('; ') || 'Continue information gathering',
+      '{{MARKET_DATA}}': context.marketData || 'No market data available',
+      '{{SEARCH_QUERY}}': context.searchQuery || 'No search performed',
+      '{{COMPETING_PRODUCTS_COUNT}}': context.competingProductsCount?.toString() || '0'
     };
 
     let result = template;

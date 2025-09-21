@@ -452,47 +452,22 @@ router.post('/:numericalId', requireAuth, upload.array('documents', 5), async (r
     );
 
     // Check if user is requesting analysis
-    const _requestingAnalysis = hasRequestedAnalysis || 
+    const _requestingAnalysis = hasRequestedAnalysis ||
       MortgageAdvisorService.isRequestingAnalysis(userMessage);
 
-    // Get conversation history and add current user message
-    const conversationHistory = updatedSession.conversationHistory || [];
-    const messages: LLMMessage[] = [
-      { role: 'system', content: systemPrompt }
-    ];
+    // NEW: Use MortgageAdvisorService to generate contextual prompt with RAG data
+    const enhancedSystemPrompt = await MortgageAdvisorService.generateContextualPrompt(
+      updatedSession,
+      userMessage,
+      _requestingAnalysis
+    );
 
-    // Add conversation history
-    for (const historyMessage of conversationHistory) {
-      if (historyMessage.startsWith('User: ')) {
-        messages.push({ 
-          role: 'user', 
-          content: historyMessage.substring(6) // Remove "User: " prefix
-        });
-      } else if (historyMessage.startsWith('AI: ')) {
-        messages.push({ 
-          role: 'assistant', 
-          content: historyMessage.substring(4) // Remove "AI: " prefix
-        });
-      }
-    }
+    // Add document context if files were uploaded
+    let documentContext = '';
+    if (documentResults.length > 0) {
+      documentContext = `
 
-    // Add current user message
-    messages.push({ role: 'user', content: userMessage });
-
-    // Add context information including document data
-    const contextInfo = `
-Current Context:
-- Completion Score: ${updatedSession.completenessScore}%
-- Missing Critical Data: ${MortgageAdvisorService.identifyMissingCriticalData(updatedSession.mortgageData).join(', ') || 'None'}
-- Conversation Stage: ${MortgageAdvisorService.getConversationStage(updatedSession)}
-- Current Priority: ${MortgageAdvisorService.getCurrentPriority(updatedSession)}
-- Advisor Mode: ${updatedSession.mode}
-
-User's mortgage data so far:
-${JSON.stringify(updatedSession.mortgageData, null, 2)}
-
-${documentResults.length > 0 ? `
-Documents processed in this message:
+Additional Context - Documents processed in this message:
 ${documentResults.map(doc => `
 - File: ${doc.fileName} (${doc.fileType}, ${Math.round(doc.fileSize/1024)}KB)
 - Document Type: ${doc.documentType}
@@ -502,12 +477,17 @@ ${documentResults.map(doc => `
 ${doc.success ? `- Extracted Data: ${JSON.stringify(doc.extractedData, null, 2)}` : `- Error: ${doc.error}`}
 `).join('\n')}
 
-The user has uploaded documents with extracted data above. Use this information to update your understanding of their mortgage situation and respond appropriately.
-` : ''}
-`;
+The user has uploaded documents with extracted data above. Use this information to update your understanding of their mortgage situation and respond appropriately.`;
+    }
 
-    // Update system message with context
-    messages[0].content = systemPrompt + '\n\n' + contextInfo;
+    // Build the final prompt with document context
+    const finalSystemPrompt = enhancedSystemPrompt + documentContext;
+
+    // Simple message structure - let MortgageAdvisorService handle complexity
+    const messages: LLMMessage[] = [
+      { role: 'system', content: finalSystemPrompt },
+      { role: 'user', content: userMessage }
+    ];
 
     // Adjust parameters based on advisor mode
     const isAnalysisMode = updatedSession.mode === 'analysis';

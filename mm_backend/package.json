@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
-    "setup-db": "ts-node src/scripts/setup-db.ts"
+    "setup-db": "ts-node src/scripts/setup-db.ts",
+    "upload-mortgage-data": "ts-node scripts/uploadMortgageData.ts"
   },
   "volta": {
     "node": "20.19.4",
@@ -16,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.59.0",
+    "@vectorize-io/vectorize-client": "^0.4.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",

@@ -133,6 +133,16 @@ Ensure PostgreSQL is running locally with mortgagemate_dev database.
 - 🔲 Create user dashboard to view and manage mortgage scenarios
 - ✅ Build LLM prompt construction system for mortgage analysis
 - ✅ Set up Anthropic Claude API integration with mock toggle environment variable
+- ✅ Implement RAG (Retrieval Augmented Generation) with Vectorize for real mortgage market data
+  - ✅ Create Vectorize service integration with official client library
+  - ✅ Create mortgage market service for intelligent product search
+  - ✅ Integrate market data into mortgage analysis prompts
+- 🔲 **Migrate to LangChain for unified LLM interface and comprehensive observability**
+  - 🔲 Replace direct Anthropic SDK calls with LangChain ChatAnthropic
+  - 🔲 Convert prompt templates to LangChain format
+  - 🔲 Set up LangSmith for conversation tracing and debugging
+  - 🔲 Implement feature flag for gradual migration
+  - 🔲 Add streaming support and improved error handling
 - 🔲 Revisit best Document Parsing services and models for scanning in mortgage documents specifically
 - 🔲 create specialized prompts for different document types (statements, offers, valuations)
 - 🔲 Create specialized prompts when asking about certain information.

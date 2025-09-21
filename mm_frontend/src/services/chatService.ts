@@ -101,7 +101,7 @@ export class ChatService {
     }
   }
 
-  // Create new chat - SO MUCH CLEANER!
+  // Create new chat
   async createNewChat(title?: string): Promise<ChatResponse> {
     try {
       const { data } = await apiClient.post<ChatResponse>('/api/chat/create', {

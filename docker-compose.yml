@@ -39,6 +39,8 @@ services:
       - DOCUMENT_PARSER_FALLBACK=${DOCUMENT_PARSER_FALLBACK:-}
       - MAX_DOCUMENT_SIZE=${MAX_DOCUMENT_SIZE:-10485760}
       - MINDEE_API_KEY=${MINDEE_API_KEY:-}
+      - VECTORIZE_URL=${VECTORIZE_URL:-}
+      - VECTORIZE_TOKEN=${VECTORIZE_TOKEN:-}
     volumes:
       - ./mm_backend:/app/mm_backend
       - ./models:/app/models

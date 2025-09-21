@@ -1,4 +1,5 @@
 import { PromptTemplate, ConversationContext, PromptTemplateType } from './prompts/prompt_scripts/PromptTemplate';
+import { createMortgageMarketService } from '../mortgageMarketService';
 import type { MortgageData } from '@mortgagemate/models';
 
 export type AdvisorMode = 'data_gathering' | 'analysis' | 'followup';
@@ -124,6 +125,26 @@ export class MortgageAdvisorService {
         templateType = 'analysis_followup';
         context.keyRecommendations = this.extractRecommendations(session.lastAnalysis);
         break;
+    }
+
+    // NEW: Fetch market data for analysis mode
+    if (mode === 'analysis') {
+      console.log('Fetching market data for mortgage analysis...');
+      try {
+        const marketService = createMortgageMarketService();
+        const marketData = await marketService.findCompetingProducts(session.mortgageData);
+
+        // Add market data to context for prompt injection
+        context.marketData = marketService.formatMarketDataForPrompt(marketData);
+        context.searchQuery = marketData.searchQuery;
+        context.competingProductsCount = marketData.products.length;
+
+        console.log(`Market data retrieved: ${marketData.products.length} products found`);
+      } catch (error) {
+        console.error('Failed to fetch market data:', error);
+        // Continue without market data rather than failing the entire analysis
+        context.marketData = 'Market data temporarily unavailable - analysis based on client data only.';
+      }
     }
 
     return await PromptTemplate.generatePrompt(
