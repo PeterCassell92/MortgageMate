@@ -58,7 +58,7 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
     currentAdvisorMode, 
     completenessScore, 
     missingFields, 
-    isInitialized 
+    isInitialized  
   } = useAppSelector(state => state.chat);
   
   const [inputValue, setInputValue] = useState('');
@@ -93,7 +93,7 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
     }
   }, [numericalId, currentNumericalId, isInitialized, dispatch, navigate]);
 
-  // Categorize document based on filename and type
+  // Categorize document based on filename and type // TODO: update with LLM categorisation? Take page 1 and see if it is titled.
   const categorizeDocument = (filename: string): UploadedDocument['category'] => {
     const lowerName = filename.toLowerCase();
     

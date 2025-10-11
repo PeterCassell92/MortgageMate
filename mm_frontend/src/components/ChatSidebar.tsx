@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Drawer,
@@ -31,7 +31,6 @@ import { useError } from '../contexts/ErrorContext';
 interface ChatSidebarProps {
   currentChatId?: number | null;
   onChatSelect: (numericalId: number) => void;
-  onNewChat?: () => void; // Made optional since we handle it internally now
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }
@@ -39,7 +38,6 @@ interface ChatSidebarProps {
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
   currentChatId,
   onChatSelect,
-  onNewChat,
   mobileOpen = false,
   onMobileClose
 }) => {
@@ -52,6 +50,15 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   const chatService = ChatService.getInstance();
+
+  const currentTitle : string|null = useMemo(() => {
+    if(currentChatId){
+      const chat = chats.find(c => c.numericalId === currentChatId);
+      return chat?.title ?? null;
+    }
+    return null
+
+  }, [currentChatId, chats]);
 
   useEffect(() => {
     loadChatList();
