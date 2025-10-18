@@ -50,12 +50,17 @@ export class LLMService {
     }
 
     const messages = request.messages.filter(m => m.role !== 'system');
-    const systemPrompt = request.systemPrompt || 
+    const systemPrompt = request.systemPrompt ||
       request.messages.find(m => m.role === 'system')?.content;
+
+    // Priority: request.model > config.defaultModel > hardcoded default
+    const model = request.model ||
+                  this.config.defaultModel?.anthropic ||
+                  'claude-sonnet-4-20250514';
 
     try {
       const response = await this.anthropic.messages.create({
-        model: this.config.defaultModel?.anthropic || 'claude-sonnet-4-20250514',
+        model,
         max_tokens: request.maxTokens || 1000,
         temperature: request.temperature || 0.7,
         system: systemPrompt,
@@ -91,9 +96,14 @@ export class LLMService {
       throw new Error('OpenAI API key not configured');
     }
 
+    // Priority: request.model > config.defaultModel > hardcoded default
+    const model = request.model ||
+                  this.config.defaultModel?.openai ||
+                  'gpt-4-turbo-preview';
+
     try {
       const response = await this.openai.chat.completions.create({
-        model: this.config.defaultModel?.openai || 'gpt-4-turbo-preview',
+        model,
         messages: request.messages.map(m => ({
           role: m.role,
           content: m.content,
@@ -137,7 +147,10 @@ export class LLMService {
     ];
 
     const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
-    
+
+    // Use provided model or default
+    const model = request.model || 'mock-model-v1';
+
     return {
       content: `**[MOCK RESPONSE]** ${randomResponse}\n\nYour message: "${lastMessage.content.substring(0, 100)}${lastMessage.content.length > 100 ? '...' : ''}"`,
       usage: {
@@ -146,7 +159,7 @@ export class LLMService {
         totalTokens: 125,
       },
       provider: 'mock',
-      model: 'mock-model-v1',
+      model,
     };
   }
 }

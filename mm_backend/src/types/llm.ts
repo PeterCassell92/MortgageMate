@@ -10,6 +10,7 @@ export interface LLMRequest {
   maxTokens?: number;
   temperature?: number;
   systemPrompt?: string;
+  model?: string; // Optional model override (takes priority over config defaults)
 }
 
 export interface LLMResponse {

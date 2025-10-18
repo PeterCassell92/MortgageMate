@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { createLLMService } from '../services/llmService';
 import { createLangChainService } from '../services/langChainService';
+import { LLMLoggingService } from '../services/llmLoggingService';
 import { LLMMessage } from '../types/llm';
 import { MortgageAdvisorService, AdvisorSession } from '../services/MortgageConversation/mortgageAdvisorService';
 // import { ChatPersistenceServicePrismaSimple } from '../services/chatPersistenceServicePrismaSimple';
@@ -22,6 +23,7 @@ interface AuthenticatedRequest extends Request {
 const router = Router();
 const llmService = createLLMService();
 const langChainService = createLangChainService();
+const llmLoggingService = LLMLoggingService.getInstance();
 const documentParser = createDocumentParsingService();
 
 // Check which LLM implementation to use
@@ -73,19 +75,23 @@ async function loadSystemPrompt(): Promise<string> {
 }
 
 // Helper function to call LLM with either legacy or LangChain
-async function callLLM(messages: LLMMessage[], options: { maxTokens: number; temperature: number }) {
+async function callLLM(
+  messages: LLMMessage[],
+  options: { maxTokens: number; temperature: number },
+  context?: { userId?: number; chatId?: string; numericalChatId?: number }
+) {
   console.log(`[callLLM] Using ${useLangChain ? 'LangChain' : 'Legacy'} implementation`);
+
+  // Extract system prompt and user message
+  const systemMessage = messages.find(m => m.role === 'system');
+  const userMessage = messages.find(m => m.role === 'user');
+
+  if (!systemMessage || !userMessage) {
+    throw new Error('System and user messages are required');
+  }
 
   try {
     if (useLangChain) {
-      // Extract system prompt and user message
-      const systemMessage = messages.find(m => m.role === 'system');
-      const userMessage = messages.find(m => m.role === 'user');
-
-      if (!systemMessage || !userMessage) {
-        throw new Error('System and user messages are required');
-      }
-
       console.log('[callLLM] Calling LangChain service...');
 
       // Combine system prompt and user message into a single template
@@ -111,15 +117,67 @@ async function callLLM(messages: LLMMessage[], options: { maxTokens: number; tem
         model: response.model
       };
     } else {
-      // Legacy approach
-      console.log('[callLLM] Calling legacy LLM service...');
-      const response = await llmService.generateResponse({
-        messages,
+      // Legacy approach with database logging
+      console.log('[callLLM] Calling legacy LLM service with database logging...');
+
+      // Determine the API URL based on provider
+      const provider = process.env.LLM_PROVIDER || 'mock';
+      const model = process.env.LLM_MODEL || 'claude-sonnet-4-20250514';
+      const apiUrl = provider === 'anthropic'
+        ? 'https://api.anthropic.com/v1/messages'
+        : provider === 'openai'
+        ? 'https://api.openai.com/v1/chat/completions'
+        : 'mock://llm';
+
+      // Start logging the request
+      const loggingResult = await llmLoggingService.logLLMRequest({
+        userId: context?.userId,
+        chatId: context?.numericalChatId,
+        url: apiUrl,
+        httpMethod: 'POST',
+        requestBody: JSON.stringify({ messages, ...options }),
+        provider,
+        model,
+        systemPrompt: systemMessage.content,
+        userMessage: userMessage.content,
+        temperature: options.temperature,
         maxTokens: options.maxTokens,
-        temperature: options.temperature
+        implementationMode: 'legacy'
       });
-      console.log('[callLLM] Legacy response received');
-      return response;
+
+      try {
+        const response = await llmService.generateResponse({
+          messages,
+          maxTokens: options.maxTokens,
+          temperature: options.temperature
+        });
+
+        console.log('[callLLM] Legacy response received');
+
+        // Log successful completion
+        if (loggingResult) {
+          await llmLoggingService.logLLMResponse(loggingResult.requestId, {
+            content: response.content,
+            inputTokens: response.usage?.inputTokens || 0,
+            outputTokens: response.usage?.outputTokens || 0,
+            totalTokens: response.usage?.totalTokens || 0,
+            estimatedCost: 0, // TODO: Implement pricing lookup (no API available from providers)
+            finishReason: 'stop'
+          });
+        }
+
+        return response;
+      } catch (llmError) {
+        // Log failure
+        if (loggingResult) {
+          await llmLoggingService.failRequest(
+            loggingResult.requestId,
+            llmError instanceof Error ? llmError.message : 'Unknown LLM error',
+            llmError instanceof Error ? llmError.constructor.name : 'UnknownError'
+          );
+        }
+        throw llmError;
+      }
     }
   } catch (error) {
     console.error('[callLLM] ERROR:', error);
@@ -265,6 +323,10 @@ router.post('/create', requireAuth, async (req: Request, res: Response) => {
     const response = await callLLM(messages, {
       maxTokens: 800,
       temperature: 0.7
+    }, {
+      userId,
+      chatId,
+      numericalChatId: numericalId
     });
 
     // Extract structured data and clean response for user
@@ -552,6 +614,10 @@ The user has uploaded documents with extracted data above. Use this information 
     const response = await callLLM(messages, {
       maxTokens: isAnalysisMode ? 2000 : 1000,
       temperature: isAnalysisMode ? 0.3 : 0.7
+    }, {
+      userId,
+      chatId,
+      numericalChatId: numericalId
     });
 
     // Debug: Log raw LLM response to see what we're getting
@@ -631,15 +697,16 @@ router.get('/config', (_req: Request, res: Response) => {
 router.post('/mortgage-analysis', requireAuth, async (req: Request, res: Response) => {
   try {
     const { mortgageData, userQuestion } = req.body;
+    const userId = (req as AuthenticatedRequest).user.id;
 
     if (!mortgageData || !userQuestion) {
-      return res.status(400).json({ 
-        error: 'Both mortgageData and userQuestion are required' 
+      return res.status(400).json({
+        error: 'Both mortgageData and userQuestion are required'
       });
     }
 
     // Create specialized system prompt for mortgage analysis
-    const systemPrompt = `You are a mortgage advisor AI helping users analyze their mortgage options. 
+    const systemPrompt = `You are a mortgage advisor AI helping users analyze their mortgage options.
 You should provide clear, actionable advice based on the mortgage data provided.
 Always consider factors like:
 - Current interest rates vs market rates
@@ -651,7 +718,7 @@ Always consider factors like:
 Be specific with numbers when possible and explain your reasoning.`;
 
     const mortgageDataString = JSON.stringify(mortgageData, null, 2);
-    
+
     const messages: LLMMessage[] = [
       {
         role: 'system',
@@ -666,6 +733,9 @@ Be specific with numbers when possible and explain your reasoning.`;
     const response = await callLLM(messages, {
       maxTokens: 1500,
       temperature: 0.3 // Lower temperature for more consistent financial advice
+    }, {
+      userId
+      // No chatId for this endpoint - it's a standalone analysis
     });
 
     return res.json({

@@ -118,36 +118,57 @@ model Analysis {
 }
 
 model LLMRequest {
-  id           Int           @id @default(autoincrement())
-  user_id      Int?
-  chat_id      Int?
-  url          String        @db.VarChar(500)
-  http_method  String        @default("POST") @db.VarChar(10)
-  request_body String
-  status       String        @default("inprocess") @db.VarChar(20)
-  provider     String        @db.VarChar(50)
-  model        String        @db.VarChar(100)
-  start_time   DateTime?     @default(now()) @db.Timestamp(6)
-  finish_time  DateTime?     @db.Timestamp(6)
-  createdAt    DateTime?     @default(now()) @map("created_at") @db.Timestamp(6)
-  chats        Chat?         @relation(fields: [chat_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users        User?         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  llmResponse  LLMResponse[]
-  messages     Message[]
+  id                 Int           @id @default(autoincrement())
+  user_id            Int?
+  chat_id            Int?
+  url                String        @db.VarChar(500)
+  http_method        String        @db.VarChar(10)
+  request_body       String
+  status             String        @default("inprocess") @db.VarChar(20)
+  provider           String        @db.VarChar(50)
+  model              String        @db.VarChar(100)
+  start_time         DateTime      @default(now()) @db.Timestamp(6)
+  finish_time        DateTime?     @db.Timestamp(6)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // LangSmith-equivalent fields (required for accurate logging)
+  systemPrompt       String        @map("system_prompt")
+  userMessage        String        @map("user_message")
+  temperature        Decimal       @db.Decimal(3, 2)
+  maxTokens          Int           @map("max_tokens")
+  implementationMode String        @default("legacy") @map("implementation_mode") @db.VarChar(20)
+  runId              String        @unique @default(uuid()) @map("run_id") @db.Uuid
+
+  // Optional fields
+  parentRunId        String?       @map("parent_run_id") @db.Uuid
+  errorMessage       String?       @map("error_message")
+  errorType          String?       @map("error_type") @db.VarChar(100)
+  tags               String?       @db.Text
+  metadata           String?       @db.Text
+
+  chats              Chat?         @relation(fields: [chat_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              User?         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  llmResponse        LLMResponse[]
+  messages           Message[]
 
   @@map("llm_requests")
 }
 
 model LLMResponse {
   id                Int         @id @default(autoincrement())
-  llmRequestId      Int?        @map("llm_request_id")
+  llmRequestId      Int         @map("llm_request_id")
   response_totality String
-  input_tokens      Int?        @default(0)
-  outputTokens      Int?        @default(0) @map("output_tokens")
-  totalTokens       Int?        @default(0) @map("total_tokens")
-  estimated_cost    Decimal?    @default(0.00) @db.Decimal(10, 6)
-  createdAt         DateTime?   @default(now()) @map("created_at") @db.Timestamp(6)
-  llmRequest        LLMRequest? @relation(fields: [llmRequestId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  input_tokens      Int
+  outputTokens      Int         @map("output_tokens")
+  totalTokens       Int         @map("total_tokens")
+  estimated_cost    Decimal     @db.Decimal(10, 6)
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // LangSmith-equivalent fields (optional but useful)
+  latencyMs         Int?        @map("latency_ms")
+  finishReason      String?     @map("finish_reason") @db.VarChar(50)
+
+  llmRequest        LLMRequest  @relation(fields: [llmRequestId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   messages          Message[]
 
   @@map("llm_responses")
