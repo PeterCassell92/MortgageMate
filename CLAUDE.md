@@ -137,11 +137,13 @@ Ensure PostgreSQL is running locally with mortgagemate_dev database.
   - ✅ Create Vectorize service integration with official client library
   - ✅ Create mortgage market service for intelligent product search
   - ✅ Integrate market data into mortgage analysis prompts
-- 🔲 **Migrate to LangChain for unified LLM interface and comprehensive observability**
-  - 🔲 Replace direct Anthropic SDK calls with LangChain ChatAnthropic
-  - 🔲 Convert prompt templates to LangChain format
+- ✅ **Migrate to LangChain for unified LLM interface and comprehensive observability** (11/10/2025)
+  - ✅ Replace direct Anthropic SDK calls with LangChain ChatAnthropic
+  - ✅ Convert prompt templates to LangChain format
+  - ✅ Implement feature flag (`LLM_IMPLEMENTATION=legacy|langchain`) for instant switching
+  - ✅ Migrate search query generation (first service migrated)
   - 🔲 Set up LangSmith for conversation tracing and debugging
-  - 🔲 Implement feature flag for gradual migration
+  - 🔲 Migrate remaining services (mortgage analysis, document parsing, chat)
   - 🔲 Add streaming support and improved error handling
 - 🔲 Revisit best Document Parsing services and models for scanning in mortgage documents specifically
 - 🔲 create specialized prompts for different document types (statements, offers, valuations)

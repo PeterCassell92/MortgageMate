@@ -68,7 +68,7 @@ export const createRateLimit = (options: {
 // Pre-configured rate limiters
 export const registrationRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 5, // 5 registration attempts per 15 minutes per IP
+  maxRequests: 50, // 50 registration attempts per 15 minutes per IP (increased for development)
   message: 'Too many registration attempts. Please wait 15 minutes before trying again.'
 });
 

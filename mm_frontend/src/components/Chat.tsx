@@ -26,7 +26,7 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
+  timestamp: string; // ISO string for Redux serialization
   documents?: UploadedDocument[];
   advisorMode?: 'data_gathering' | 'analysis' | 'followup';
   completenessScore?: number;
@@ -343,18 +343,18 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
                         ))}
                       </Box>
                     )}
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
+                    <Typography
+                      variant="caption"
+                      sx={{
                         display: 'block',
                         mt: 1,
                         opacity: 0.7,
                         fontSize: '0.75rem'
                       }}
                     >
-                      {message.timestamp.toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
+                      {new Date(message.timestamp).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
                       })}
                     </Typography>
                   </Paper>

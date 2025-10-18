@@ -1,16 +1,23 @@
 import { VectorizeService, createVectorizeService } from './vectorizeService';
 import { LLMService, createLLMService } from './llmService';
+import { LangChainService, createLangChainService } from './langChainService';
 import { PromptTemplate } from './MortgageConversation/prompts/prompt_scripts/PromptTemplate';
+import { SEARCH_QUERY_GENERATION_TEMPLATE, createSearchQueryVariables } from './prompts/langChainTemplates';
 import { MarketData, MortgageProduct } from '../types/vectorize';
 import type { MortgageData } from '@mortgagemate/models';
 
 export class MortgageMarketService {
   private vectorizeService: VectorizeService | null;
   private llmService: LLMService;
+  private langChainService: LangChainService;
+  private useLangChain: boolean;
 
   constructor() {
     this.vectorizeService = createVectorizeService();
     this.llmService = createLLMService();
+    this.langChainService = createLangChainService();
+    // Use LangChain when LLM_IMPLEMENTATION is set to 'langchain', otherwise use legacy
+    this.useLangChain = process.env.LLM_IMPLEMENTATION === 'langchain';
   }
 
   /**
@@ -59,21 +66,37 @@ export class MortgageMarketService {
    * Generate an intelligent search query using LLM and prompt template
    */
   private async generateSearchQuery(mortgageData: Partial<MortgageData>): Promise<string> {
-    // Use the prompt template system for consistency
-    const prompt = await PromptTemplate.generatePrompt(
-      'search_query_generation',
-      mortgageData as MortgageData
-    );
+    if (this.useLangChain) {
+      // New LangChain approach
+      const variables = createSearchQueryVariables(mortgageData);
 
-    const response = await this.llmService.generateResponse({
-      messages: [
-        { role: 'user', content: prompt }
-      ],
-      maxTokens: 100,
-      temperature: 0.3
-    });
+      const response = await this.langChainService.invoke({
+        template: SEARCH_QUERY_GENERATION_TEMPLATE,
+        variables,
+        options: {
+          maxTokens: 100,
+          temperature: 0.3
+        }
+      });
 
-    return response.content.trim().replace(/^["']|["']$/g, ''); // Remove quotes if present
+      return response.content.trim().replace(/^["']|["']$/g, ''); // Remove quotes if present
+    } else {
+      // Legacy approach - keep for backward compatibility
+      const prompt = await PromptTemplate.generatePrompt(
+        'search_query_generation',
+        mortgageData as MortgageData
+      );
+
+      const response = await this.llmService.generateResponse({
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        maxTokens: 100,
+        temperature: 0.3
+      });
+
+      return response.content.trim().replace(/^["']|["']$/g, ''); // Remove quotes if present
+    }
   }
 
   /**

@@ -5,7 +5,7 @@ interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
+  timestamp: string; // ISO string instead of Date object for Redux serialization
   documents?: File[];
   advisorMode?: 'data_gathering' | 'analysis' | 'followup';
   completenessScore?: number;
@@ -180,7 +180,7 @@ const chatSlice = createSlice({
         id: Date.now().toString(),
         role: 'user',
         content: action.payload.content,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         documents: action.payload.documents,
       };
       state.messages.push(message);
@@ -229,7 +229,7 @@ const chatSlice = createSlice({
               id: Date.now().toString(),
               role: 'assistant',
               content: action.payload.message,
-              timestamp: new Date(),
+              timestamp: new Date().toISOString(),
               isWelcomeMessage: true,
               advisorMode: action.payload.advisorMode,
               completenessScore: action.payload.completenessScore,
@@ -269,14 +269,14 @@ const chatSlice = createSlice({
                   id: `restored-user-${index}`,
                   role: 'user',
                   content: historyItem.substring(6),
-                  timestamp: new Date(),
+                  timestamp: new Date().toISOString(),
                 });
               } else if (historyItem.startsWith('AI: ')) {
                 restoredMessages.push({
                   id: `restored-ai-${index}`,
                   role: 'assistant',
                   content: historyItem.substring(4),
-                  timestamp: new Date(),
+                  timestamp: new Date().toISOString(),
                   advisorMode: data.advisorMode,
                   completenessScore: data.completenessScore,
                 });
@@ -307,7 +307,7 @@ const chatSlice = createSlice({
             id: (Date.now() + 1).toString(),
             role: 'assistant',
             content: response.message,
-            timestamp: new Date(),
+            timestamp: new Date().toISOString(),
             advisorMode: response.advisorMode,
             completenessScore: response.completenessScore,
             missingFields: response.missingFields,

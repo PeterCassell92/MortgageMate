@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { createLLMService } from '../services/llmService';
+import { createLangChainService } from '../services/langChainService';
 import { LLMMessage } from '../types/llm';
 import { MortgageAdvisorService, AdvisorSession } from '../services/MortgageConversation/mortgageAdvisorService';
 // import { ChatPersistenceServicePrismaSimple } from '../services/chatPersistenceServicePrismaSimple';
@@ -20,7 +21,11 @@ interface AuthenticatedRequest extends Request {
 
 const router = Router();
 const llmService = createLLMService();
+const langChainService = createLangChainService();
 const documentParser = createDocumentParsingService();
+
+// Check which LLM implementation to use
+const useLangChain = process.env.LLM_IMPLEMENTATION === 'langchain';
 
 // Temporary in-memory session store (TODO: replace with database persistence)
 const sessionStore = new Map<string, AdvisorSession>();
@@ -64,6 +69,61 @@ async function loadSystemPrompt(): Promise<string> {
   } catch (error) {
     console.error('Failed to load system prompt:', error);
     return 'You are MortgageMate AI, a professional mortgage advisor.';
+  }
+}
+
+// Helper function to call LLM with either legacy or LangChain
+async function callLLM(messages: LLMMessage[], options: { maxTokens: number; temperature: number }) {
+  console.log(`[callLLM] Using ${useLangChain ? 'LangChain' : 'Legacy'} implementation`);
+
+  try {
+    if (useLangChain) {
+      // Extract system prompt and user message
+      const systemMessage = messages.find(m => m.role === 'system');
+      const userMessage = messages.find(m => m.role === 'user');
+
+      if (!systemMessage || !userMessage) {
+        throw new Error('System and user messages are required');
+      }
+
+      console.log('[callLLM] Calling LangChain service...');
+
+      // Combine system prompt and user message into a single template
+      const template = `${systemMessage.content}\n\n---\n\n{userMessage}`;
+
+      const response = await langChainService.invoke({
+        template,
+        variables: {
+          userMessage: userMessage.content
+        },
+        options: {
+          maxTokens: options.maxTokens,
+          temperature: options.temperature
+        }
+      });
+
+      console.log('[callLLM] LangChain response received');
+
+      return {
+        content: response.content,
+        usage: response.usage,
+        provider: response.provider,
+        model: response.model
+      };
+    } else {
+      // Legacy approach
+      console.log('[callLLM] Calling legacy LLM service...');
+      const response = await llmService.generateResponse({
+        messages,
+        maxTokens: options.maxTokens,
+        temperature: options.temperature
+      });
+      console.log('[callLLM] Legacy response received');
+      return response;
+    }
+  } catch (error) {
+    console.error('[callLLM] ERROR:', error);
+    throw error;
   }
 }
 
@@ -202,13 +262,10 @@ router.post('/create', requireAuth, async (req: Request, res: Response) => {
       { role: 'user', content: welcomePrompt }
     ];
 
-    const llmRequest = {
-      messages,
+    const response = await callLLM(messages, {
       maxTokens: 800,
-      temperature: 0.7,
-    };
-
-    const response = await llmService.generateResponse(llmRequest);
+      temperature: 0.7
+    });
 
     // Extract structured data and clean response for user
     const { cleanedResponse, extractedData } = extractStructuredData(response.content);
@@ -491,17 +548,25 @@ The user has uploaded documents with extracted data above. Use this information 
 
     // Adjust parameters based on advisor mode
     const isAnalysisMode = updatedSession.mode === 'analysis';
-    const llmRequest = {
-      messages,
-      maxTokens: isAnalysisMode ? 2000 : 1000,
-      temperature: isAnalysisMode ? 0.3 : 0.7,
-    };
 
-    const response = await llmService.generateResponse(llmRequest);
+    const response = await callLLM(messages, {
+      maxTokens: isAnalysisMode ? 2000 : 1000,
+      temperature: isAnalysisMode ? 0.3 : 0.7
+    });
+
+    // Debug: Log raw LLM response to see what we're getting
+    console.log('=== RAW LLM RESPONSE ===');
+    console.log(response.content.substring(0, 500)); // First 500 chars
+    console.log('=== END RAW RESPONSE ===');
 
     // Extract structured data and clean response for user
     const { cleanedResponse, extractedData } = extractStructuredData(response.content);
-    
+
+    // Debug: Log extraction results
+    console.log('=== EXTRACTION RESULTS ===');
+    console.log('Extracted data:', extractedData);
+    console.log('=== END EXTRACTION ===');
+
     // Process any extracted data first
     if (extractedData?.extractedData) {
       // Update advisor session with extracted data
@@ -598,13 +663,10 @@ Be specific with numbers when possible and explain your reasoning.`;
       }
     ];
 
-    const llmRequest = {
-      messages,
+    const response = await callLLM(messages, {
       maxTokens: 1500,
-      temperature: 0.3, // Lower temperature for more consistent financial advice
-    };
-
-    const response = await llmService.generateResponse(llmRequest);
+      temperature: 0.3 // Lower temperature for more consistent financial advice
+    });
 
     return res.json({
       success: true,
