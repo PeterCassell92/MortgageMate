@@ -77,21 +77,14 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
     scrollToBottom();
   }, [messages]);
 
-  // Initialize chat when numericalId changes or when first loading
+  // Load chat when numericalId changes
   useEffect(() => {
     if (numericalId && numericalId !== currentNumericalId) {
       // Load existing chat using Redux action
       dispatch(loadExistingChat(numericalId));
-    } else if (!numericalId && !isInitialized && !currentNumericalId) {
-      // Create new chat if no specific ID and not initialized
-      dispatch(createNewChat('New Chat')).then((result) => {
-        if (result.meta.requestStatus === 'fulfilled' && result.payload?.numericalId) {
-          // Navigate to the new chat URL
-          navigate(`/dashboard/chat/${result.payload.numericalId}`, { replace: true });
-        }
-      });
     }
-  }, [numericalId, currentNumericalId, isInitialized, dispatch, navigate]);
+    // Note: Chat creation is handled by Dashboard component
+  }, [numericalId, currentNumericalId, dispatch]);
 
   // Categorize document based on filename and type // TODO: update with LLM categorisation? Take page 1 and see if it is titled.
   const categorizeDocument = (filename: string): UploadedDocument['category'] => {

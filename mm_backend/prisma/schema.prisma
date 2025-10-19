@@ -17,6 +17,8 @@ model User {
   chats             Chat[]
   llm_requests      LLMRequest[]
   mortgageScenarios MortgageScenario[]
+  sentMessages      Message[]          @relation("SentMessages")
+  receivedMessages  Message[]          @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -34,7 +36,6 @@ model Chat {
   overallStatus        String?           @default("active") @map("overall_status") @db.VarChar(50)
   mortgageScenario     MortgageScenario? @relation(fields: [mortgageScenarioId], references: [id], onUpdate: NoAction)
   user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  llm_requests         LLMRequest[]
   messages             Message[]
 
   @@unique([userId, nonUniqueNumericalId], map: "chats_user_numerical_id_unique")
@@ -90,8 +91,8 @@ model MortgageScenario {
 model Message {
   id            Int          @id @default(autoincrement())
   chatId        Int?         @map("chat_id")
-  fromUser      String       @map("from_user") @db.VarChar(255)
-  toUser        String       @map("to_user") @db.VarChar(255)
+  fromUserId    Int          @map("from_user_id")
+  toUserId      Int          @map("to_user_id")
   messageBody   String       @map("message_body")
   sent_time     DateTime?    @default(now()) @db.Timestamp(6)
   received_time DateTime?    @db.Timestamp(6)
@@ -99,6 +100,8 @@ model Message {
   llmResponseId Int?         @map("llm_response_id")
   createdAt     DateTime?    @default(now()) @map("created_at") @db.Timestamp(6)
   chat          Chat?        @relation(fields: [chatId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  fromUser      User         @relation("SentMessages", fields: [fromUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  toUser        User         @relation("ReceivedMessages", fields: [toUserId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   llmRequest    LLMRequest?  @relation(fields: [llmRequestId], references: [id], onUpdate: NoAction)
   llmResponse   LLMResponse? @relation(fields: [llmResponseId], references: [id], onUpdate: NoAction)
 
@@ -120,7 +123,6 @@ model Analysis {
 model LLMRequest {
   id                 Int           @id @default(autoincrement())
   user_id            Int?
-  chat_id            Int?
   url                String        @db.VarChar(500)
   http_method        String        @db.VarChar(10)
   request_body       String
@@ -146,7 +148,6 @@ model LLMRequest {
   tags               String?       @db.Text
   metadata           String?       @db.Text
 
-  chats              Chat?         @relation(fields: [chat_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users              User?         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   llmResponse        LLMResponse[]
   messages           Message[]

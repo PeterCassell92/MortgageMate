@@ -9,18 +9,24 @@
     "start": "node dist/index.js",
     "tsc": "tsc --noEmit",
     "tsc:watch": "tsc --watch",
-    "setup-db": "ts-node src/scripts/setup-db.ts",
-    "upload-mortgage-data": "ts-node scripts/uploadMortgageData.ts"
+    "setup-db": "ts-node scripts/setup-db.ts",
+    "upload-mortgage-data": "ts-node scripts/uploadMortgageData.ts",
+    "db:reset": "bash scripts/reset-database.sh",
+    "db:reset:force": "bash scripts/reset-database.sh --force"
   },
   "volta": {
     "node": "20.19.4",
     "yarn": "1.22.22"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.59.0",
     "@langchain/anthropic": "^0.3.30",
     "@langchain/core": "^0.3.78",
     "@langchain/openai": "^0.6.14",
+    "@prisma/client": "6.14.0",
     "@vectorize-io/vectorize-client": "^0.4.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",

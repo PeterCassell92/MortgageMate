@@ -2,25 +2,25 @@ import pool from '../utils/database';
 import { Message, CreateMessageRequest } from '../types/chat';
 
 export class MessageModel {
-  static async create(data: CreateMessageRequest & { 
-    user_id: number;
-    llm_request_id?: number; 
+  static async create(data: CreateMessageRequest & {
+    from_user_id: number;
+    to_user_id: number;
+    llm_request_id?: number;
     llm_response_id?: number;
   }): Promise<Message> {
     const query = `
       INSERT INTO messages (
-        chat_id, user_id, from_user, to_user, message_body, 
+        chat_id, from_user_id, to_user_id, message_body,
         llm_request_id, llm_response_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
-    
+
     const values = [
       data.chat_id,
-      data.user_id,
-      data.from_user,
-      data.to_user,
+      data.from_user_id,
+      data.to_user_id,
       data.message_body,
       data.llm_request_id || null,
       data.llm_response_id || null

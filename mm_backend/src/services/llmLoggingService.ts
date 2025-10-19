@@ -1,11 +1,17 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ['error', 'warn', 'query'],
+});
+
+// Connect on module load
+prisma.$connect().catch((err: unknown) => {
+  console.error('[LLMLoggingService] Failed to connect to database:', err);
+});
 
 interface LLMRequestData {
   // Context (optional)
   userId?: number;
-  chatId?: number;
 
   // Required LLM call details
   url: string;
@@ -70,7 +76,6 @@ export class LLMLoggingService {
         data: {
           // Context
           user_id: data.userId,
-          chat_id: data.chatId,
 
           // Required fields (no defaults - must be provided)
           url: data.url,
@@ -100,8 +105,11 @@ export class LLMLoggingService {
     } catch (error) {
       console.error('[LLMLoggingService] Error starting request:', error);
       if (error instanceof Error) {
-        console.error('[LLMLoggingService] Error details:', error.message);
+        console.error('[LLMLoggingService] Error message:', error.message);
+        console.error('[LLMLoggingService] Error stack:', error.stack);
       }
+      // Log the data that failed
+      console.error('[LLMLoggingService] Failed data:', JSON.stringify(data, null, 2));
       return null;
     }
   }
@@ -110,11 +118,12 @@ export class LLMLoggingService {
    * Log an LLM response
    *
    * All required response fields must be provided.
+   * Returns the response ID for linking to messages.
    */
   async logLLMResponse(
     requestId: number,
     responseData: LLMResponseData
-  ): Promise<void> {
+  ): Promise<number | null> {
     try {
       const finishTime = new Date();
 
@@ -125,7 +134,7 @@ export class LLMLoggingService {
 
       if (!request) {
         console.error(`[LLMLoggingService] Request ${requestId} not found`);
-        return;
+        return null;
       }
 
       const latencyMs = request.start_time
@@ -142,7 +151,7 @@ export class LLMLoggingService {
       });
 
       // Create response record (all required fields must be provided)
-      await prisma.lLMResponse.create({
+      const llmResponse = await prisma.lLMResponse.create({
         data: {
           llmRequestId: requestId,
           response_totality: responseData.content,
@@ -155,12 +164,14 @@ export class LLMLoggingService {
         }
       });
 
-      console.log(`[LLMLoggingService] Completed request ${requestId} (${latencyMs}ms)`);
+      console.log(`[LLMLoggingService] Completed request ${requestId} with response ${llmResponse.id} (${latencyMs}ms)`);
+      return llmResponse.id;
     } catch (error) {
       console.error('[LLMLoggingService] Error completing request:', error);
       if (error instanceof Error) {
         console.error('[LLMLoggingService] Error details:', error.message);
       }
+      return null;
     }
   }
 
@@ -224,22 +235,64 @@ export class LLMLoggingService {
   }
 
   /**
-   * Get all requests for a chat
+   * Get chat with all messages and their associated LLM requests/responses
+   * Provides complete traceability of chat -> messages -> LLM calls
    */
-  async getChatRequests(chatId: number) {
+  async getChatWithLLMDetails(chatId: number, userId: number) {
     try {
-      return await prisma.lLMRequest.findMany({
-        where: { chat_id: chatId },
-        include: {
-          llmResponse: true
+      const chat = await prisma.chat.findFirst({
+        where: {
+          id: chatId,
+          userId: userId,
+          overallStatus: 'active'
         },
-        orderBy: {
-          start_time: 'desc'
+        include: {
+          messages: {
+            include: {
+              llmRequest: {
+                include: {
+                  llmResponse: true
+                }
+              },
+              llmResponse: true
+            },
+            orderBy: { createdAt: 'asc' }
+          },
+          mortgageScenario: true
         }
       });
+
+      if (!chat) {
+        return null;
+      }
+
+      // Calculate totals for this chat
+      const llmRequests = chat.messages
+        .map((m: any) => m.llmRequest)
+        .filter((r: any) => r !== null);
+
+      const totalRequests = llmRequests.length;
+      const totalTokens = llmRequests.reduce((sum: number, req: any) => {
+        const response = req?.llmResponse?.[0];
+        return sum + (response?.totalTokens || 0);
+      }, 0);
+      const totalCost = llmRequests.reduce((sum: number, req: any) => {
+        const response = req?.llmResponse?.[0];
+        return sum + (response ? Number(response.estimated_cost) : 0);
+      }, 0);
+
+      return {
+        chat,
+        stats: {
+          totalRequests,
+          totalTokens,
+          totalCost: totalCost.toFixed(4),
+          messageCount: chat.messages.length
+        }
+      };
     } catch (error) {
-      console.error('[LLMLoggingService] Error getting chat requests:', error);
-      return [];
+      console.error('[LLMLoggingService] Error getting chat with LLM details:', error);
+      return null;
     }
   }
 
@@ -256,22 +309,22 @@ export class LLMLoggingService {
       });
 
       const totalRequests = requests.length;
-      const completedRequests = requests.filter(r => r.status === 'completed').length;
-      const failedRequests = requests.filter(r => r.status === 'failed').length;
+      const completedRequests = requests.filter((r: any) => r.status === 'completed').length;
+      const failedRequests = requests.filter((r: any) => r.status === 'failed').length;
 
-      const totalCost = requests.reduce((sum, req) => {
+      const totalCost = requests.reduce((sum: number, req: any) => {
         const response = req.llmResponse[0];
         return sum + (response ? Number(response.estimated_cost) : 0);
       }, 0);
 
-      const totalTokens = requests.reduce((sum, req) => {
+      const totalTokens = requests.reduce((sum: number, req: any) => {
         const response = req.llmResponse[0];
         return sum + (response?.totalTokens || 0);
       }, 0);
 
       const avgLatency = requests
-        .map(req => req.llmResponse[0]?.latencyMs || 0)
-        .reduce((sum, lat) => sum + lat, 0) / (completedRequests || 1);
+        .map((req: any) => req.llmResponse[0]?.latencyMs || 0)
+        .reduce((sum: number, lat: number) => sum + lat, 0) / (completedRequests || 1);
 
       return {
         totalRequests,

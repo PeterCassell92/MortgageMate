@@ -4,7 +4,7 @@ import { createLangChainService } from '../services/langChainService';
 import { LLMLoggingService } from '../services/llmLoggingService';
 import { LLMMessage } from '../types/llm';
 import { MortgageAdvisorService, AdvisorSession } from '../services/MortgageConversation/mortgageAdvisorService';
-// import { ChatPersistenceServicePrismaSimple } from '../services/chatPersistenceServicePrismaSimple';
+import { ChatPersistenceService } from '../services/chatPersistenceService';
 import { createDocumentParsingService } from '../services/DocumentParser/documentParser';
 import { DocumentType } from '../types/documentParser';
 import { requireAuth } from '../middleware/auth';
@@ -29,19 +29,8 @@ const documentParser = createDocumentParsingService();
 // Check which LLM implementation to use
 const useLangChain = process.env.LLM_IMPLEMENTATION === 'langchain';
 
-// Temporary in-memory session store (TODO: replace with database persistence)
+// In-memory session store for active sessions (will be synced to DB)
 const sessionStore = new Map<string, AdvisorSession>();
-
-// Temporary in-memory chat store for demo
-interface TempChat {
-  id: string;
-  numericalId: number;
-  title: string;
-  userId: number;
-  createdAt: Date;
-}
-const tempChatStore = new Map<number, TempChat[]>(); // userId -> chats
-let nextNumericalId = 1;
 
 // Configure multer for file uploads
 const upload = multer({
@@ -132,7 +121,6 @@ async function callLLM(
       // Start logging the request
       const loggingResult = await llmLoggingService.logLLMRequest({
         userId: context?.userId,
-        chatId: context?.numericalChatId,
         url: apiUrl,
         httpMethod: 'POST',
         requestBody: JSON.stringify({ messages, ...options }),
@@ -154,9 +142,10 @@ async function callLLM(
 
         console.log('[callLLM] Legacy response received');
 
-        // Log successful completion
+        // Log successful completion and get response ID
+        let responseId: number | null = null;
         if (loggingResult) {
-          await llmLoggingService.logLLMResponse(loggingResult.requestId, {
+          responseId = await llmLoggingService.logLLMResponse(loggingResult.requestId, {
             content: response.content,
             inputTokens: response.usage?.inputTokens || 0,
             outputTokens: response.usage?.outputTokens || 0,
@@ -166,7 +155,11 @@ async function callLLM(
           });
         }
 
-        return response;
+        return {
+          ...response,
+          llmRequestId: loggingResult?.requestId,
+          llmResponseId: responseId
+        };
       } catch (llmError) {
         // Log failure
         if (loggingResult) {
@@ -243,34 +236,26 @@ function determineDocumentType(filename: string): DocumentType {
 router.get('/list', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthenticatedRequest).user.id;
-    
-    // Get chats from temporary in-memory store
-    const userChats = tempChatStore.get(userId) || [];
-    const chats = userChats.map(chat => ({
-      id: chat.id,
-      numericalId: chat.numericalId,
-      title: chat.title,
-      lastViewed: chat.createdAt,
-      updatedAt: chat.createdAt,
-      createdAt: chat.createdAt
-    }));
-    
+
+    // Get chats from database
+    const chats = await ChatPersistenceService.getUserChats(userId);
+
     // Get latest chat for auto-loading
-    const latestChat = userChats.length > 0 ? userChats[userChats.length - 1] : null;
-    
+    const latestChat = await ChatPersistenceService.getLatestChatForUser(userId);
+
     return res.json({
       success: true,
-      data: { 
+      data: {
         chats,
         latestChatId: latestChat?.numericalId || null
       }
     });
-    
+
   } catch (error) {
     console.error('Failed to get chat list:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Internal server error' 
+      error: error instanceof Error ? error.message : 'Internal server error'
     });
   }
 });
@@ -280,28 +265,16 @@ router.post('/create', requireAuth, async (req: Request, res: Response) => {
   try {
     const { title } = req.body;
     const userId = (req as AuthenticatedRequest).user.id;
-    
-    // Create new chat session in temporary memory store
-    const chatId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const numericalId = nextNumericalId++;
-    
-    const newChat: TempChat = {
-      id: chatId,
-      numericalId,
-      title: title || 'New Chat',
+
+    // Create new chat session in database
+    const { chatId, numericalId } = await ChatPersistenceService.createNewChatSession(
       userId,
-      createdAt: new Date()
-    };
-    
-    // Store chat in temporary store
-    if (!tempChatStore.has(userId)) {
-      tempChatStore.set(userId, []);
-    }
-    tempChatStore.get(userId)!.push(newChat);
-    
-    // Create new advisor session
+      title || 'New Chat'
+    );
+
+    // Create new advisor session for in-memory use
     const advisorSession = MortgageAdvisorService.createInitialSession();
-    
+
     // Store session in memory for immediate use
     sessionStore.set(chatId, advisorSession);
 
@@ -341,9 +314,17 @@ router.post('/create', requireAuth, async (req: Request, res: Response) => {
     // Save updated session
     sessionStore.set(chatId, updatedSession);
 
-    // TODO: Re-enable database persistence later
-    // await ChatPersistenceServicePrismaSimple.saveSessionToDatabase(...)
-    
+    // Save welcome message to database (AI response only, no user message yet)
+    await ChatPersistenceService.saveSessionToDatabase(
+      chatId,
+      userId,
+      updatedSession,
+      undefined, // No user message yet
+      cleanedResponse, // AI welcome message
+      undefined, // No LLM request for welcome
+      undefined  // No LLM response for welcome
+    );
+
     return res.json({
       success: true,
       data: {
@@ -379,38 +360,44 @@ router.post('/:numericalId/load', requireAuth, async (req: Request, res: Respons
         error: 'Invalid numerical ID'
       });
     }
-    
+
     const userId = (req as AuthenticatedRequest).user.id;
-    
-    // Find chat in temporary store
-    const userChats = tempChatStore.get(userId) || [];
-    const chat = userChats.find(c => c.numericalId === numericalId);
-    
-    if (!chat) {
+
+    // Restore chat from database
+    const persistedChat = await ChatPersistenceService.restoreSessionFromDatabase(
+      numericalId,
+      userId
+    );
+
+    if (!persistedChat) {
       return res.status(404).json({
         success: false,
         error: 'Chat session not found'
       });
     }
-    
-    // Get or create advisor session
-    let advisorSession = sessionStore.get(chat.id);
-    if (!advisorSession) {
-      // Create new session if not found in memory
-      advisorSession = MortgageAdvisorService.createInitialSession();
-      sessionStore.set(chat.id, advisorSession);
+
+    // Get the chat UUID from the persisted session
+    const chatUUID = await ChatPersistenceService.getChatIdFromNumericalId(userId, numericalId);
+    if (!chatUUID) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat UUID not found'
+      });
     }
-    
+
+    // Store advisor session in memory for active use
+    sessionStore.set(chatUUID, persistedChat.advisorSession);
+
     return res.json({
       success: true,
       data: {
-        chatId: chat.id,
+        chatId: chatUUID,
         numericalId: numericalId,
-        advisorMode: advisorSession.mode,
-        completenessScore: advisorSession.completenessScore,
-        mortgageData: advisorSession.mortgageData,
-        conversationHistory: advisorSession.conversationHistory || [],
-        lastAnalysis: advisorSession.lastAnalysis
+        advisorMode: persistedChat.advisorSession.mode,
+        completenessScore: persistedChat.advisorSession.completenessScore,
+        mortgageData: persistedChat.advisorSession.mortgageData,
+        conversationHistory: persistedChat.conversationHistory || [],
+        lastAnalysis: persistedChat.advisorSession.lastAnalysis
       }
     });
     
@@ -423,7 +410,7 @@ router.post('/:numericalId/load', requireAuth, async (req: Request, res: Respons
   }
 });
 
-// POST /api/chat/:numericalId/delete - Delete chat from temporary store
+// POST /api/chat/:numericalId/delete - Soft delete chat from database
 router.post('/:numericalId/delete', requireAuth, async (req: Request, res: Response) => {
   try {
     const numericalId = parseInt(req.params.numericalId);
@@ -433,29 +420,31 @@ router.post('/:numericalId/delete', requireAuth, async (req: Request, res: Respo
         error: 'Invalid numerical ID'
       });
     }
-    
+
     const userId = (req as AuthenticatedRequest).user.id;
-    
-    // Find and remove chat from temporary store
-    const userChats = tempChatStore.get(userId) || [];
-    const chatIndex = userChats.findIndex(c => c.numericalId === numericalId);
-    
-    if (chatIndex === -1) {
+
+    // Get chat UUID
+    const chatUUID = await ChatPersistenceService.getChatIdFromNumericalId(userId, numericalId);
+    if (!chatUUID) {
       return res.status(404).json({
         success: false,
         error: 'Chat session not found'
       });
     }
-    
-    const chatId = userChats[chatIndex].id;
-    
-    // Remove chat from store
-    userChats.splice(chatIndex, 1);
-    tempChatStore.set(userId, userChats);
-    
+
+    // Soft delete chat in database
+    const deleted = await ChatPersistenceService.softDeleteChat(chatUUID, userId);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat session not found or already deleted'
+      });
+    }
+
     // Remove from memory store if present
-    sessionStore.delete(chatId);
-    
+    sessionStore.delete(chatUUID);
+
     return res.json({
       success: true,
       message: 'Chat deleted successfully'
@@ -494,19 +483,16 @@ router.post('/:numericalId', requireAuth, upload.array('documents', 5), async (r
     }
 
     const userId = (req as AuthenticatedRequest).user.id;
-    
-    // Find chat in temporary store
-    const userChats = tempChatStore.get(userId) || [];
-    const chat = userChats.find(c => c.numericalId === numericalId);
-    
-    if (!chat) {
+
+    // Get chat UUID from database
+    const chatId = await ChatPersistenceService.getChatIdFromNumericalId(userId, numericalId);
+
+    if (!chatId) {
       return res.status(404).json({
         success: false,
         error: 'Chat session not found'
       });
     }
-    
-    const chatId = chat.id;
 
     const files = req.files as Express.Multer.File[] || [];
     
@@ -652,8 +638,16 @@ The user has uploaded documents with extracted data above. Use this information 
     // Save updated session
     sessionStore.set(chatId, finalSession);
 
-    // TODO: Re-enable database persistence later
-    // await ChatPersistenceServicePrismaSimple.saveSessionToDatabase(...);
+    // Save messages and session to database with LLM request/response links
+    await ChatPersistenceService.saveSessionToDatabase(
+      chatId,
+      userId,
+      finalSession,
+      userMessage, // User message
+      cleanedResponse, // AI response
+      (response as any).llmRequestId, // LLM request ID from callLLM
+      (response as any).llmResponseId  // LLM response ID from callLLM
+    );
 
     return res.json({
       success: true,

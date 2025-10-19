@@ -29,6 +29,7 @@ services:
       - PORT=4321
       - FRONTEND_URL=http://localhost:3000
       - DATABASE_URI=postgresql://postgres:postgres@postgres:5432/mortgagemate_dev
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/mortgagemate_dev?schema=public
       - JWT_SECRET=${JWT_SECRET:-your-secret-key-here}
       - BCRYPT_ROUNDS=${BCRYPT_ROUNDS:-12}
       - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}

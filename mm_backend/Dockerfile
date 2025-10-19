@@ -17,6 +17,9 @@ COPY models/ ./models/
 # Set working directory to backend for execution
 WORKDIR /app/mm_backend
 
+# Generate Prisma Client from schema
+RUN npx prisma generate
+
 # Expose ports (app and debug)
 EXPOSE 4321 9229
 

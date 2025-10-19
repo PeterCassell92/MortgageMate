@@ -14,8 +14,8 @@ export interface Chat {
 export interface Message {
   id: number;
   chat_id: number;
-  from_user: string;
-  to_user: string;
+  from_user_id: number;
+  to_user_id: number;
   message_body: string;
   sent_time: Date;
   received_time?: Date;
@@ -26,8 +26,7 @@ export interface Message {
 
 export interface LLMRequest {
   id: number;
-  user_id: number;
-  chat_id: number;
+  user_id?: number;
   url: string;
   http_method: string;
   request_body: string;
@@ -58,8 +57,6 @@ export interface CreateChatRequest {
 export interface CreateMessageRequest {
   chat_id: number;
   message_body: string;
-  from_user: string;
-  to_user: string;
 }
 
 export interface ChatWithMessages extends Chat {

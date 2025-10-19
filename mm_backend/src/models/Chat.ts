@@ -1,28 +1,32 @@
 import pool from '../utils/database';
 import { Chat, CreateChatRequest, ChatWithMessages } from '../types/chat';
 import { v4 as uuidv4 } from 'uuid';
+import { PoolClient } from 'pg';
 
 export class ChatModel {
-  static async create(userId: number, data: CreateChatRequest): Promise<Chat> {
+  static async create(userId: number, data: CreateChatRequest, client?: PoolClient): Promise<Chat> {
+    // Use provided client (for transactions) or default pool
+    const db = client || pool;
+
     // First, get the next numerical ID for this user
     const nextIdQuery = `
       SELECT COALESCE(MAX(non_unique_numerical_id), 0) + 1 as next_id
-      FROM chats 
+      FROM chats
       WHERE user_id = $1
     `;
-    
-    const nextIdResult = await pool.query(nextIdQuery, [userId]);
+
+    const nextIdResult = await db.query(nextIdQuery, [userId]);
     const nextNumericalId = nextIdResult.rows[0].next_id;
-    
+
     // Generate UUID for chat_id
     const chatUUID = uuidv4();
-    
+
     const query = `
       INSERT INTO chats (chat_id, user_id, title, mortgage_scenario_id, non_unique_numerical_id, overall_status)
       VALUES ($1, $2, $3, $4, $5, 'active')
       RETURNING *
     `;
-    
+
     const values = [
       chatUUID,
       userId,
@@ -31,7 +35,7 @@ export class ChatModel {
       nextNumericalId
     ];
 
-    const result = await pool.query(query, values);
+    const result = await db.query(query, values);
     return result.rows[0];
   }
 

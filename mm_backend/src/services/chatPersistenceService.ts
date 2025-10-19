@@ -50,24 +50,26 @@ export class ChatPersistenceService {
       );
       
       // Save messages if provided
+      // MortgageAdvisor user ID = 0
+      const MORTGAGE_ADVISOR_ID = 0;
+
       if (userMessage) {
         await MessageModel.create({
           chat_id: chatIdInt,
-          user_id: userId,
-          from_user: 'user',
-          to_user: 'assistant',
+          from_user_id: userId,
+          to_user_id: MORTGAGE_ADVISOR_ID,
           message_body: userMessage,
           llm_request_id: llmRequestId
         });
       }
-      
+
       if (aiResponse) {
         await MessageModel.create({
           chat_id: chatIdInt,
-          user_id: userId,
-          from_user: 'assistant',
-          to_user: 'user',
+          from_user_id: MORTGAGE_ADVISOR_ID,
+          to_user_id: userId,
           message_body: aiResponse,
+          llm_request_id: llmRequestId,
           llm_response_id: llmResponseId
         });
       }
@@ -172,13 +174,14 @@ export class ChatPersistenceService {
       ]);
       
       const scenarioId = scenarioResult.rows[0].id;
-      
+
       // Now create chat record with proper mortgage_scenario_id
+      // Pass the client to ensure it's part of the same transaction
       const chat = await ChatModel.create(userId, {
         title: title || 'New Chat',
         mortgage_scenario_id: scenarioId
-      });
-      
+      }, client);
+
       await client.query('COMMIT');
       
       // Return UUID chatId and user-friendly numerical ID
@@ -315,7 +318,7 @@ export class ChatPersistenceService {
         current_balance = $10,
         monthly_payment = $11,
         current_rate = $12,
-        term_remaining = $13,
+        term_length = $13,
         product_end_date = $14,
         exit_fees = $15,
         early_repayment_charges = $16,
@@ -398,7 +401,7 @@ export class ChatPersistenceService {
       currentBalance: row.current_balance,
       monthlyPayment: row.monthly_payment,
       currentRate: row.current_rate,
-      termRemaining: row.term_remaining,
+      termRemaining: row.term_length,
       productEndDate: row.product_end_date,
       exitFees: row.exit_fees,
       earlyRepaymentCharges: row.early_repayment_charges,
@@ -419,8 +422,9 @@ export class ChatPersistenceService {
   }
   
   private static reconstructConversationHistory(messages: any[]): string[] {
+    const MORTGAGE_ADVISOR_ID = 0;
     return messages.map(msg => {
-      const role = msg.from_user === 'user' ? 'User' : 'AI';
+      const role = msg.from_user_id === MORTGAGE_ADVISOR_ID ? 'AI' : 'User';
       return `${role}: ${msg.message_body}`;
     });
   }

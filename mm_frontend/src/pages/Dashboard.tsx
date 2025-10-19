@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, IconButton, useTheme, useMediaQuery } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { useParams, useLocation } from 'react-router-dom';
@@ -7,7 +7,7 @@ import Chat from '../components/Chat';
 import Sidebar from '../components/Sidebar';
 import ChatSidebarContent from '../components/ChatSidebarContent';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { loadExistingChat, createNewChat } from '../store/slices/chatSlice';
+import { loadExistingChat, createNewChat, loadChatList } from '../store/slices/chatSlice';
 
 const Dashboard: React.FC = () => {
   const { numericalId } = useParams<{ numericalId: string }>();
@@ -18,16 +18,33 @@ const Dashboard: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // Load chat based on URL parameter
+  // Prevent duplicate chat initialization in StrictMode
+  const hasInitialized = useRef(false);
+
+  // Smart chat initialization: load existing or create new
   useEffect(() => {
     const chatId = numericalId ? parseInt(numericalId, 10) : null;
-    
+
     if (chatId && !isNaN(chatId)) {
       // Load specific chat from URL
       dispatch(loadExistingChat(chatId));
-    } else if (location.pathname === '/dashboard/chat' && !currentNumericalId) {
-      // No specific chat ID and no current chat - create new chat
-      dispatch(createNewChat('New Chat'));
+    } else if (location.pathname === '/dashboard/chat' && !currentNumericalId && !hasInitialized.current) {
+      // No specific chat in URL - check if user has existing chats
+      hasInitialized.current = true;
+
+      dispatch(loadChatList()).then((result) => {
+        if (result.meta.requestStatus === 'fulfilled' && result.payload) {
+          const payload = result.payload as { latestChatId: number | null };
+
+          if (payload.latestChatId) {
+            // User has existing chats - load the most recent one
+            dispatch(loadExistingChat(payload.latestChatId));
+          } else {
+            // User has no chats - create first chat
+            dispatch(createNewChat('New Chat'));
+          }
+        }
+      });
     }
   }, [numericalId, location.pathname, currentNumericalId, dispatch]);
 
