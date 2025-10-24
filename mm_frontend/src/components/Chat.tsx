@@ -10,29 +10,17 @@ import {
   Chip,
   LinearProgress
 } from '@mui/material';
-import { Send as SendIcon, AttachFile as AttachFileIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { Send as SendIcon, AttachFile as AttachFileIcon, ErrorOutline as ErrorOutlineIcon } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { 
-  loadExistingChat, 
-  createNewChat, 
-  sendMessage, 
-  addUserMessage, 
-  loadChatList 
+import {
+  loadExistingChat,
+  sendMessage,
+  addUserMessage,
+  loadChatList,
+  clearLlmError,
+  clearChatCreationError
 } from '../store/slices/chatSlice';
 import { useError } from '../contexts/ErrorContext';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string; // ISO string for Redux serialization
-  documents?: UploadedDocument[];
-  advisorMode?: 'data_gathering' | 'analysis' | 'followup';
-  completenessScore?: number;
-  missingFields?: string[];
-  isWelcomeMessage?: boolean;
-}
 
 interface UploadedDocument {
   id: string;
@@ -50,15 +38,16 @@ interface ChatProps {
 
 const Chat: React.FC<ChatProps> = ({ numericalId }) => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const { 
-    messages, 
+  const {
+    messages,
     messagesLoading,
-    currentNumericalId, 
-    currentAdvisorMode, 
-    completenessScore, 
-    missingFields, 
-    isInitialized  
+    currentNumericalId,
+    currentAdvisorMode,
+    completenessScore,
+    missingFields,
+    isInitialized,
+    llmError,
+    chatCreationError
   } = useAppSelector(state => state.chat);
   
   const [inputValue, setInputValue] = useState('');
@@ -138,13 +127,18 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
     if ((!inputValue.trim() && attachedDocuments.length === 0) || messagesLoading || !isInitialized) return;
 
     const messageText = inputValue.trim() || 'Uploaded documents for analysis';
-    
+
+    // Clear any existing LLM errors before sending new message
+    if (llmError) {
+      dispatch(clearLlmError());
+    }
+
     // Add user message to Redux store immediately
-    dispatch(addUserMessage({ 
-      content: messageText, 
-      documents: attachedDocuments.map(doc => doc.file) 
+    dispatch(addUserMessage({
+      content: messageText,
+      documents: attachedDocuments.map(doc => doc.file)
     }));
-    
+
     // Clear input and attachments
     setInputValue('');
     setAttachedDocuments([]);
@@ -207,6 +201,56 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
           minHeight: 0 // Allows the paper to shrink properly
         }}
       >
+        {/* Chat Creation Error Display */}
+        {chatCreationError && (
+          <Box
+            sx={{
+              px: 3,
+              py: 2,
+              bgcolor: '#ffebee',
+              borderBottom: '2px solid #ef5350',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5
+            }}
+          >
+            <ErrorOutlineIcon sx={{ color: '#c62828', fontSize: 24 }} />
+            <Box sx={{ flex: 1 }}>
+              <Typography
+                variant="body1"
+                sx={{
+                  color: '#c62828',
+                  fontWeight: 500,
+                  mb: 0.5
+                }}
+              >
+                Unable to Create Chat
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#d32f2f',
+                  fontSize: '0.875rem'
+                }}
+              >
+                {chatCreationError}
+              </Typography>
+            </Box>
+            <IconButton
+              size="small"
+              onClick={() => dispatch(clearChatCreationError())}
+              sx={{
+                color: '#c62828',
+                '&:hover': {
+                  bgcolor: 'rgba(198, 40, 40, 0.1)'
+                }
+              }}
+            >
+              <Typography sx={{ fontSize: '1.2rem' }}>×</Typography>
+            </IconButton>
+          </Box>
+        )}
+
         {/* Progress Header */}
         {isInitialized && (
           <Box
@@ -380,10 +424,36 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
           <div ref={messagesEndRef} />
         </Box>
 
+        {/* LLM Error Display */}
+        {llmError && (
+          <Box
+            sx={{
+              px: 3,
+              py: 1,
+              bgcolor: '#fff3e0',
+              borderTop: '1px solid #ffb74d',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <ErrorOutlineIcon sx={{ color: '#f57c00', fontSize: 18 }} />
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#e65100',
+                fontSize: '0.875rem'
+              }}
+            >
+              {llmError}
+            </Typography>
+          </Box>
+        )}
+
         {/* Input Area */}
-        <Box 
-          sx={{ 
-            padding: 3, 
+        <Box
+          sx={{
+            padding: 3,
             borderTop: '1px solid #e0e0e0',
             bgcolor: '#fff'
           }}

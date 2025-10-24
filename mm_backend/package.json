@@ -26,7 +26,7 @@
     "@langchain/anthropic": "^0.3.30",
     "@langchain/core": "^0.3.78",
     "@langchain/openai": "^0.6.14",
-    "@prisma/client": "6.14.0",
+    "@prisma/client": "6.18.0",
     "@vectorize-io/vectorize-client": "^0.4.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
@@ -50,6 +50,7 @@
     "@types/pg": "^8.15.5",
     "@types/uuid": "^10.0.0",
     "nodemon": "^3.1.10",
+    "prisma": "^6.18.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   }

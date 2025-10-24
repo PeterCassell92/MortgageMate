@@ -597,14 +597,25 @@ The user has uploaded documents with extracted data above. Use this information 
     // Adjust parameters based on advisor mode
     const isAnalysisMode = updatedSession.mode === 'analysis';
 
-    const response = await callLLM(messages, {
-      maxTokens: isAnalysisMode ? 2000 : 1000,
-      temperature: isAnalysisMode ? 0.3 : 0.7
-    }, {
-      userId,
-      chatId,
-      numericalChatId: numericalId
-    });
+    let response;
+    try {
+      response = await callLLM(messages, {
+        maxTokens: isAnalysisMode ? 2000 : 1000,
+        temperature: isAnalysisMode ? 0.3 : 0.7
+      }, {
+        userId,
+        chatId,
+        numericalChatId: numericalId
+      });
+    } catch (llmError) {
+      console.error('LLM Service Error:', llmError);
+      return res.status(500).json({
+        success: false,
+        error: 'Error occurred when requesting response from LLM service',
+        errorType: 'LLM_ERROR',
+        details: llmError instanceof Error ? llmError.message : 'Unknown LLM error'
+      });
+    }
 
     // Debug: Log raw LLM response to see what we're getting
     console.log('=== RAW LLM RESPONSE ===');

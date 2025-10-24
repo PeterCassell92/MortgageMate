@@ -18,20 +18,25 @@ interface ChatState {
   chats: ChatSummary[];
   chatsLoading: boolean;
   chatsError: string | null;
-  
+
   // Current chat
   currentChatId: string | null;
   currentNumericalId: number | null;
   messages: ChatMessage[];
   messagesLoading: boolean;
   messagesError: string | null;
-  
+
+  // Error handling
+  llmError: string | null;
+  llmErrorType: string | null;
+  chatCreationError: string | null;
+
   // Chat metadata
   currentAdvisorMode: 'data_gathering' | 'analysis' | 'followup';
   completenessScore: number;
   missingFields: string[];
   isInitialized: boolean;
-  
+
   // UI state
   sidebarExpanded: boolean;
 }
@@ -40,18 +45,22 @@ const initialState: ChatState = {
   chats: [],
   chatsLoading: false,
   chatsError: null,
-  
+
   currentChatId: null,
   currentNumericalId: null,
   messages: [],
   messagesLoading: false,
   messagesError: null,
-  
+
+  llmError: null,
+  llmErrorType: null,
+  chatCreationError: null,
+
   currentAdvisorMode: 'data_gathering',
   completenessScore: 0,
   missingFields: [],
   isInitialized: false,
-  
+
   sidebarExpanded: false,
 };
 
@@ -188,6 +197,16 @@ const chatSlice = createSlice({
     clearErrors: (state) => {
       state.chatsError = null;
       state.messagesError = null;
+      state.llmError = null;
+      state.llmErrorType = null;
+      state.chatCreationError = null;
+    },
+    clearLlmError: (state) => {
+      state.llmError = null;
+      state.llmErrorType = null;
+    },
+    clearChatCreationError: (state) => {
+      state.chatCreationError = null;
     },
   },
   extraReducers: (builder) => {
@@ -213,16 +232,19 @@ const chatSlice = createSlice({
       .addCase(createNewChat.pending, (state) => {
         state.messagesLoading = true;
         state.messagesError = null;
+        state.chatCreationError = null;
       })
       .addCase(createNewChat.fulfilled, (state, action) => {
         state.messagesLoading = false;
+        state.chatCreationError = null;
+
         if (action.payload) {
           state.currentChatId = action.payload.chatId || null;
           state.currentNumericalId = action.payload.numericalId || null;
           state.currentAdvisorMode = action.payload.advisorMode || 'data_gathering';
           state.completenessScore = action.payload.completenessScore || 0;
           state.isInitialized = true;
-          
+
           // Add welcome message if present
           if (action.payload.isWelcomeMessage && action.payload.message) {
             const welcomeMessage: ChatMessage = {
@@ -240,7 +262,19 @@ const chatSlice = createSlice({
       })
       .addCase(createNewChat.rejected, (state, action) => {
         state.messagesLoading = false;
-        state.messagesError = action.payload as string;
+        state.isInitialized = false;
+
+        // Extract a user-friendly error message
+        const errorMessage = action.payload as string;
+
+        // Simplify technical errors for users
+        if (errorMessage.includes('LangChain error') || errorMessage.includes('template')) {
+          state.chatCreationError = 'Unable to start new chat. Please try again or contact support if the problem persists.';
+        } else if (errorMessage.includes('500') || errorMessage.includes('Internal Server Error')) {
+          state.chatCreationError = 'Server error occurred. Please try again in a moment.';
+        } else {
+          state.chatCreationError = 'Failed to create new chat. Please try again.';
+        }
       });
 
     // Load existing chat
@@ -296,12 +330,17 @@ const chatSlice = createSlice({
       .addCase(sendMessage.pending, (state) => {
         state.messagesLoading = true;
         state.messagesError = null;
+        state.llmError = null;
+        state.llmErrorType = null;
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
         state.messagesLoading = false;
+        state.llmError = null;
+        state.llmErrorType = null;
+
         if (action.payload.response) {
           const response = action.payload.response;
-          
+
           // Add assistant message
           const assistantMessage: ChatMessage = {
             id: (Date.now() + 1).toString(),
@@ -313,7 +352,7 @@ const chatSlice = createSlice({
             missingFields: response.missingFields,
           };
           state.messages.push(assistantMessage);
-          
+
           // Update chat metadata
           if (response.advisorMode) {
             state.currentAdvisorMode = response.advisorMode;
@@ -328,7 +367,18 @@ const chatSlice = createSlice({
       })
       .addCase(sendMessage.rejected, (state, action) => {
         state.messagesLoading = false;
-        state.messagesError = action.payload as string;
+
+        // Try to parse the error to detect LLM_ERROR type
+        const errorMessage = action.payload as string;
+
+        // Check if this is an LLM error - the backend returns a specific message
+        if (errorMessage.includes('Error occurred when requesting response from LLM service') ||
+            errorMessage.includes('LLM_ERROR')) {
+          state.llmError = 'Error occurred when requesting response from LLM service';
+          state.llmErrorType = 'LLM_ERROR';
+        } else {
+          state.messagesError = errorMessage;
+        }
       });
 
     // Delete chat
@@ -351,5 +401,5 @@ const chatSlice = createSlice({
   },
 });
 
-export const { setSidebarExpanded, clearCurrentChat, addUserMessage, clearErrors } = chatSlice.actions;
+export const { setSidebarExpanded, clearCurrentChat, addUserMessage, clearErrors, clearLlmError, clearChatCreationError } = chatSlice.actions;
 export default chatSlice.reducer;
