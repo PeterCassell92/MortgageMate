@@ -110,8 +110,14 @@ async function callLLM(
       console.log('[callLLM] Calling LangChain service...');
 
       try {
+        // Escape curly braces in system prompt for LangChain template
+        // LangChain uses {variable} syntax, so we need to escape any literal braces
+        const escapedSystemPrompt = systemMessage.content
+          .replace(/\{/g, '{{')
+          .replace(/\}/g, '}}');
+
         // Combine system prompt and user message into a single template
-        const template = `${systemMessage.content}\n\n---\n\n{userMessage}`;
+        const template = `${escapedSystemPrompt}\n\n---\n\n{userMessage}`;
 
         const response = await langChainService.invoke({
           template,
