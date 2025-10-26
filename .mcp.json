@@ -19,6 +19,11 @@
       "env": {
         "DATABASE_URI": "postgresql://postgres:postgres@localhost:5433/mortgagemate_dev"
       }
+    },
+     "browser-tools": {
+      "command": "npx",
+      "args": ["@agentdeskai/browser-tools-mcp@latest"],
+      "env": {}
     }
   }  
 }

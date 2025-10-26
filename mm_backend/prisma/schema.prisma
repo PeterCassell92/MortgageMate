@@ -139,6 +139,7 @@ model LLMRequest {
   temperature        Decimal       @db.Decimal(3, 2)
   maxTokens          Int           @map("max_tokens")
   implementationMode String        @default("legacy") @map("implementation_mode") @db.VarChar(20)
+  apiWrapper         String?       @map("api_wrapper") @db.VarChar(50)
   runId              String        @unique @default(uuid()) @map("run_id") @db.Uuid
 
   // Optional fields

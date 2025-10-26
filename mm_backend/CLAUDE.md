@@ -121,7 +121,40 @@ Backend reads from root `.env` file:
 - **Password**: postgres
 
 ### Available Scripts
-- `yarn setup-db`: Initialize database and create tables
+
+#### Database Management Scripts
+Located in `/mm_backend/scripts/`:
+
+**Migration Script:**
+```bash
+# Create and apply a new Prisma migration
+./scripts/nameAndApplyMigration.sh <migration-name>
+
+# Example:
+./scripts/nameAndApplyMigration.sh add_api_wrapper_to_llm_requests
+```
+
+Features:
+- Automatically loads `DATABASE_URL` from root `.env` file
+- Validates migration name is provided
+- Colored output for success/error messages
+- Masks database password in output for security
+- Runs `prisma migrate dev` with proper environment setup
+
+**Database Reset Script:**
+```bash
+# Reset the entire database (WARNING: Destructive!)
+./scripts/reset-database.sh
+```
+
+Features:
+- Drops all tables and resets database to clean state
+- Re-applies all migrations from scratch
+- Useful for development when you need a fresh start
+- **WARNING**: This will delete all data
+
+#### Other Database Utilities
+- `yarn setup-db`: Initialize database and create tables (legacy)
 - Database utilities in `src/utils/database.ts`
 - Migration scripts in `src/utils/migrations.ts`
 

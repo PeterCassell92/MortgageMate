@@ -276,15 +276,15 @@ export class ChatPersistenceService {
     return chat.chat_id; // Return the actual UUID
   }
   
-  private static async getChatIdFromUUID(chatUUID: string): Promise<number | null> {
+  static async getChatIdFromUUID(chatUUID: string): Promise<number | null> {
     // Find chat by UUID and return internal database ID
     const query = 'SELECT id FROM chats WHERE chat_id = $1';
     const result = await pool.query(query, [chatUUID]);
-    
+
     if (result.rows.length === 0) {
       return null;
     }
-    
+
     return result.rows[0].id;
   }
   

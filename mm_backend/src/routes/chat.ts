@@ -5,6 +5,7 @@ import { LLMLoggingService } from '../services/llmLoggingService';
 import { LLMMessage } from '../types/llm';
 import { MortgageAdvisorService, AdvisorSession } from '../services/MortgageConversation/mortgageAdvisorService';
 import { ChatPersistenceService } from '../services/chatPersistenceService';
+import { MessageModel } from '../models/Message';
 import { createDocumentParsingService } from '../services/DocumentParser/documentParser';
 import { DocumentType } from '../types/documentParser';
 import { requireAuth } from '../middleware/auth';
@@ -79,59 +80,87 @@ async function callLLM(
     throw new Error('System and user messages are required');
   }
 
+  // Determine provider, model, and API URL (common for both implementations)
+  const provider = process.env.LLM_PROVIDER || 'mock';
+  const model = process.env.LLM_MODEL || 'claude-sonnet-4-20250514';
+  const apiUrl = provider === 'anthropic'
+    ? 'https://api.anthropic.com/v1/messages'
+    : provider === 'openai'
+    ? 'https://api.openai.com/v1/chat/completions'
+    : 'mock://llm';
+
   try {
+    // Start logging the request (for both LangChain and Legacy)
+    const loggingResult = await llmLoggingService.logLLMRequest({
+      userId: context?.userId,
+      url: apiUrl,
+      httpMethod: 'POST',
+      requestBody: JSON.stringify({ messages, ...options }),
+      provider,
+      model,
+      systemPrompt: systemMessage.content,
+      userMessage: userMessage.content,
+      temperature: options.temperature,
+      maxTokens: options.maxTokens,
+      implementationMode: useLangChain ? 'langchain' : 'legacy',
+      apiWrapper: useLangChain ? 'langchain' : null
+    });
+
     if (useLangChain) {
       console.log('[callLLM] Calling LangChain service...');
 
-      // Combine system prompt and user message into a single template
-      const template = `${systemMessage.content}\n\n---\n\n{userMessage}`;
+      try {
+        // Combine system prompt and user message into a single template
+        const template = `${systemMessage.content}\n\n---\n\n{userMessage}`;
 
-      const response = await langChainService.invoke({
-        template,
-        variables: {
-          userMessage: userMessage.content
-        },
-        options: {
-          maxTokens: options.maxTokens,
-          temperature: options.temperature
+        const response = await langChainService.invoke({
+          template,
+          variables: {
+            userMessage: userMessage.content
+          },
+          options: {
+            maxTokens: options.maxTokens,
+            temperature: options.temperature
+          }
+        });
+
+        console.log('[callLLM] LangChain response received');
+
+        // Log successful completion
+        let responseId: number | null = null;
+        if (loggingResult) {
+          responseId = await llmLoggingService.logLLMResponse(loggingResult.requestId, {
+            content: response.content,
+            inputTokens: response.usage?.inputTokens || 0,
+            outputTokens: response.usage?.outputTokens || 0,
+            totalTokens: response.usage?.totalTokens || 0,
+            estimatedCost: 0, // TODO: Implement pricing lookup
+            finishReason: 'stop'
+          });
         }
-      });
 
-      console.log('[callLLM] LangChain response received');
-
-      return {
-        content: response.content,
-        usage: response.usage,
-        provider: response.provider,
-        model: response.model
-      };
+        return {
+          content: response.content,
+          usage: response.usage,
+          provider: response.provider,
+          model: response.model,
+          llmRequestId: loggingResult?.requestId,
+          llmResponseId: responseId
+        };
+      } catch (llmError) {
+        // Log failure for LangChain
+        if (loggingResult) {
+          await llmLoggingService.failRequest(
+            loggingResult.requestId,
+            llmError instanceof Error ? llmError.message : 'Unknown LLM error',
+            llmError instanceof Error ? llmError.constructor.name : 'UnknownError'
+          );
+        }
+        throw llmError;
+      }
     } else {
-      // Legacy approach with database logging
+      // Legacy approach
       console.log('[callLLM] Calling legacy LLM service with database logging...');
-
-      // Determine the API URL based on provider
-      const provider = process.env.LLM_PROVIDER || 'mock';
-      const model = process.env.LLM_MODEL || 'claude-sonnet-4-20250514';
-      const apiUrl = provider === 'anthropic'
-        ? 'https://api.anthropic.com/v1/messages'
-        : provider === 'openai'
-        ? 'https://api.openai.com/v1/chat/completions'
-        : 'mock://llm';
-
-      // Start logging the request
-      const loggingResult = await llmLoggingService.logLLMRequest({
-        userId: context?.userId,
-        url: apiUrl,
-        httpMethod: 'POST',
-        requestBody: JSON.stringify({ messages, ...options }),
-        provider,
-        model,
-        systemPrompt: systemMessage.content,
-        userMessage: userMessage.content,
-        temperature: options.temperature,
-        maxTokens: options.maxTokens,
-        implementationMode: 'legacy'
-      });
 
       try {
         const response = await llmService.generateResponse({
@@ -544,11 +573,30 @@ router.post('/:numericalId', requireAuth, upload.array('documents', 5), async (r
     // Get existing session
     const advisorSession = sessionStore.get(chatId);
     if (!advisorSession) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: 'Chat session not found. Please load the chat first.' 
+        error: 'Chat session not found. Please load the chat first.'
       });
     }
+
+    // Get internal database chat ID for loading previous messages
+    const chatIdInt = await ChatPersistenceService.getChatIdFromUUID(chatId);
+    if (!chatIdInt) {
+      return res.status(404).json({
+        success: false,
+        error: 'Chat not found in database'
+      });
+    }
+
+    // Load previous messages from database
+    const MORTGAGE_ADVISOR_ID = 0;
+    const previousMessages = await MessageModel.findByChatId(chatIdInt);
+
+    // Convert database messages to LLM format
+    const conversationHistory: LLMMessage[] = previousMessages.map(msg => ({
+      role: msg.from_user_id === MORTGAGE_ADVISOR_ID ? 'assistant' : 'user',
+      content: msg.message_body
+    }));
     
     // Update session with user input
     const updatedSession = MortgageAdvisorService.updateSessionWithUserInput(
@@ -588,9 +636,10 @@ The user has uploaded documents with extracted data above. Use this information 
     // Build the final prompt with document context
     const finalSystemPrompt = enhancedSystemPrompt + documentContext;
 
-    // Simple message structure - let MortgageAdvisorService handle complexity
+    // Build messages array with conversation history from database
     const messages: LLMMessage[] = [
       { role: 'system', content: finalSystemPrompt },
+      ...conversationHistory,
       { role: 'user', content: userMessage }
     ];
 

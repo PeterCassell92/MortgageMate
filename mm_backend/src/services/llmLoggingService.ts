@@ -24,6 +24,7 @@ interface LLMRequestData {
   temperature: number;
   maxTokens: number;
   implementationMode: 'legacy' | 'langchain';
+  apiWrapper?: string | null; // 'langchain' or null for direct API calls
 
   // Optional metadata
   tags?: string[];
@@ -88,6 +89,7 @@ export class LLMLoggingService {
           temperature: data.temperature,
           maxTokens: data.maxTokens,
           implementationMode: data.implementationMode,
+          apiWrapper: data.apiWrapper || null,
 
           // Optional metadata
           parentRunId: data.parentRunId,
