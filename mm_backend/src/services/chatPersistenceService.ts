@@ -130,12 +130,15 @@ export class ChatPersistenceService {
       const lastAnalysis = await this.getLastAnalysis(chatWithMessages.mortgage_scenario_id || null);
       
       // Reconstruct advisor session
+      const mode = (mortgageData.advisor_mode as any) || 'data_gathering';
       const advisorSession: AdvisorSession = {
-        mode: (mortgageData.advisor_mode as any) || 'data_gathering',
+        mode,
         mortgageData: mortgageData,
         conversationHistory: conversationHistory,
         lastAnalysis: lastAnalysis,
-        completenessScore: MortgageAdvisorService.calculateCompleteness(mortgageData)
+        completenessScore: MortgageAdvisorService.calculateCompleteness(mortgageData),
+        offerAnalysis: mode === 'data_gathering' && MortgageAdvisorService.hasAllRequiredData(mortgageData),
+        userHasRequestedAnalysis: (mortgageData as any).user_has_requested_analysis || false
       };
       
       return {
@@ -309,40 +312,42 @@ export class ChatPersistenceService {
         advisor_mode = $1,
         conversation_stage = $2,
         current_priority = $3,
-        property_location = $4,
-        property_type = $5,
-        property_value = $6,
-        property_use = $7,
-        current_lender = $8,
-        mortgage_type = $9,
-        current_balance = $10,
-        monthly_payment = $11,
-        current_rate = $12,
-        term_length = $13,
-        product_end_date = $14,
-        exit_fees = $15,
-        early_repayment_charges = $16,
-        annual_income = $17,
-        employment_status = $18,
-        credit_score = $19,
-        existing_debts = $20,
-        disposable_income = $21,
-        available_deposit = $22,
-        primary_objective = $23,
-        risk_tolerance = $24,
-        preferred_term = $25,
-        payment_preference = $26,
-        timeline = $27,
-        additional_context = $28,
-        documents_summary = $29,
+        user_has_requested_analysis = $4,
+        property_location = $5,
+        property_type = $6,
+        property_value = $7,
+        property_use = $8,
+        current_lender = $9,
+        mortgage_type = $10,
+        current_balance = $11,
+        monthly_payment = $12,
+        current_rate = $13,
+        term_length = $14,
+        product_end_date = $15,
+        exit_fees = $16,
+        early_repayment_charges = $17,
+        annual_income = $18,
+        employment_status = $19,
+        credit_score = $20,
+        existing_debts = $21,
+        disposable_income = $22,
+        available_deposit = $23,
+        primary_objective = $24,
+        risk_tolerance = $25,
+        preferred_term = $26,
+        payment_preference = $27,
+        timeline = $28,
+        additional_context = $29,
+        documents_summary = $30,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $30 AND user_id = $31
+      WHERE id = $31 AND user_id = $32
     `;
     
     const values = [
       advisorSession.mode,
       stage,
       priority,
+      advisorSession.userHasRequestedAnalysis || false,
       data.propertyLocation || null,
       data.propertyType || null,
       data.propertyValue || null,
@@ -376,7 +381,7 @@ export class ChatPersistenceService {
     await client.query(updateQuery, values);
   }
   
-  private static async getMortgageScenarioData(scenarioId: number | null): Promise<Partial<MortgageData> & { advisor_mode?: string }> {
+  private static async getMortgageScenarioData(scenarioId: number | null): Promise<Partial<MortgageData> & { advisor_mode?: string; user_has_requested_analysis?: boolean }> {
     if (!scenarioId) {
       return {};
     }
@@ -392,6 +397,7 @@ export class ChatPersistenceService {
     
     return {
       advisor_mode: row.advisor_mode,
+      user_has_requested_analysis: row.user_has_requested_analysis,
       propertyLocation: row.property_location,
       propertyType: row.property_type,
       propertyValue: row.property_value,

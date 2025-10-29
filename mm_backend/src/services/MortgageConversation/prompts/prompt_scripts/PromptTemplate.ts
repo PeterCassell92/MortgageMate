@@ -22,7 +22,7 @@ export interface ConversationContext {
   competingProductsCount?: number;
 }
 
-export type PromptTemplateType = 'mortgage_analysis' | 'data_gathering' | 'analysis_followup' | 'search_query_generation';
+export type PromptTemplateType = 'mortgage_analysis' | 'data_gathering' | 'analysis_followup' | 'analysis_confirmation' | 'search_query_generation';
 
 export class PromptTemplate {
   private static readonly TEMPLATES_DIR = path.join(__dirname, '..', 'prompt_templates');

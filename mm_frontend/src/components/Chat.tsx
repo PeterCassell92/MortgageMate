@@ -133,10 +133,13 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
       dispatch(clearLlmError());
     }
 
+    // Extract document files BEFORE clearing state
+    const documentFiles = attachedDocuments.map(doc => doc.file);
+
     // Add user message to Redux store immediately
     dispatch(addUserMessage({
       content: messageText,
-      documents: attachedDocuments.map(doc => doc.file)
+      documents: documentFiles
     }));
 
     // Clear input and attachments
@@ -146,9 +149,6 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
     try {
       // Detect if user is requesting analysis
       const hasRequestedAnalysis = /\b(analy[sz]e|analy[sz]is|recommend|advice|what should i do|help me decide|best option|compare|should i switch|proceed|yes.*analy)/i.test(messageText);
-      
-      // Extract actual File objects from attached documents
-      const documentFiles = attachedDocuments.map(doc => doc.file);
       
       // Send message using Redux action
       await dispatch(sendMessage({

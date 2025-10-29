@@ -10,6 +10,8 @@ export interface AdvisorSession {
   conversationHistory: string[];
   lastAnalysis?: string;
   completenessScore: number; // 0-100, how much data we have
+  offerAnalysis?: boolean; // True when all required data collected and ready to offer analysis
+  userHasRequestedAnalysis?: boolean; // True when LLM detects user has explicitly requested analysis
 }
 
 export class MortgageAdvisorService {
@@ -116,13 +118,22 @@ export class MortgageAdvisorService {
 
     switch (mode) {
       case 'data_gathering':
-        templateType = 'data_gathering';
+        // If all required data is collected, offer analysis confirmation
+        if (this.hasAllRequiredData(session.mortgageData)) {
+          templateType = 'analysis_confirmation';
+          session.offerAnalysis = true;
+        } else {
+          templateType = 'data_gathering';
+          session.offerAnalysis = false;
+        }
         break;
       case 'analysis':
         templateType = 'mortgage_analysis';
+        session.offerAnalysis = false; // No longer offering - now performing analysis
         break;
       case 'followup':
         templateType = 'analysis_followup';
+        session.offerAnalysis = false; // No longer offering - analysis already done
         context.keyRecommendations = this.extractRecommendations(session.lastAnalysis);
         break;
     }
@@ -201,23 +212,14 @@ export class MortgageAdvisorService {
     return recommendations.slice(0, 5); // Top 5 recommendations
   }
 
-  static isRequestingAnalysis(userMessage: string): boolean {
-    const analysisKeywords = [
-      'analyze', 'analysis', 'recommend', 'advice', 'what should i do',
-      'help me decide', 'best option', 'compare', 'should i switch',
-      'remortgage', 'better deal', 'save money', 'calculate'
-    ];
-    
-    const lowerMessage = userMessage.toLowerCase();
-    return analysisKeywords.some(keyword => lowerMessage.includes(keyword));
-  }
-
   static createInitialSession(): AdvisorSession {
     return {
       mode: 'data_gathering',
       mortgageData: {},
       conversationHistory: [],
-      completenessScore: 0
+      completenessScore: 0,
+      offerAnalysis: false,
+      userHasRequestedAnalysis: false
     };
   }
 

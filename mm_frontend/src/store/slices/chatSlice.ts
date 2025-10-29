@@ -36,6 +36,8 @@ interface ChatState {
   completenessScore: number;
   missingFields: string[];
   isInitialized: boolean;
+  offerAnalysis: boolean; // True when all required data collected and ready to offer analysis
+  userHasRequestedAnalysis: boolean; // True when LLM detects user has explicitly requested analysis
 
   // UI state
   sidebarExpanded: boolean;
@@ -60,6 +62,8 @@ const initialState: ChatState = {
   completenessScore: 0,
   missingFields: [],
   isInitialized: false,
+  offerAnalysis: false,
+  userHasRequestedAnalysis: false,
 
   sidebarExpanded: false,
 };
@@ -135,7 +139,7 @@ export const sendMessage = createAsyncThunk(
   }, { rejectWithValue }) => {
     try {
       const chatService = ChatService.getInstance();
-      const response = await chatService.sendMessage(userMessage, undefined, hasRequestedAnalysis, documents);
+      const response = await chatService.sendMessage(userMessage, documents, hasRequestedAnalysis);
       
       if (!response.success) {
         throw new Error(response.error || 'Failed to send message');
@@ -243,6 +247,8 @@ const chatSlice = createSlice({
           state.currentNumericalId = action.payload.numericalId || null;
           state.currentAdvisorMode = action.payload.advisorMode || 'data_gathering';
           state.completenessScore = action.payload.completenessScore || 0;
+          state.offerAnalysis = action.payload.offerAnalysis || false;
+          state.userHasRequestedAnalysis = action.payload.userHasRequestedAnalysis || false;
           state.isInitialized = true;
 
           // Add welcome message if present
@@ -292,6 +298,8 @@ const chatSlice = createSlice({
           state.currentAdvisorMode = data.advisorMode || 'data_gathering';
           state.completenessScore = data.completenessScore || 0;
           state.missingFields = data.missingFields || [];
+          state.offerAnalysis = data.offerAnalysis || false;
+          state.userHasRequestedAnalysis = data.userHasRequestedAnalysis || false;
           state.isInitialized = true;
           
           // Restore conversation history as messages
@@ -362,6 +370,12 @@ const chatSlice = createSlice({
           }
           if (response.missingFields) {
             state.missingFields = response.missingFields;
+          }
+          if (response.offerAnalysis !== undefined) {
+            state.offerAnalysis = response.offerAnalysis;
+          }
+          if (response.userHasRequestedAnalysis !== undefined) {
+            state.userHasRequestedAnalysis = response.userHasRequestedAnalysis;
           }
         }
       })

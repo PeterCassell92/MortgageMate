@@ -6,19 +6,32 @@ Based on our conversation, I have now gathered all the essential information req
 {{#if propertyLocation}}- Location: {{propertyLocation}}{{/if}}
 {{#if propertyType}}- Property Type: {{propertyType}}{{/if}}
 {{#if propertyValue}}- Current Value: £{{propertyValue}}{{/if}}
+{{#if propertyUse}}- Property Use: {{propertyUse}}{{/if}}
 
 **Current Mortgage:**
+{{#if currentLender}}- Current Lender: {{currentLender}}{{/if}}
+{{#if mortgageType}}- Mortgage Type: {{mortgageType}}{{/if}}
 {{#if currentBalance}}- Outstanding Balance: £{{currentBalance}}{{/if}}
 {{#if monthlyPayment}}- Monthly Payment: £{{monthlyPayment}}{{/if}}
 {{#if currentRate}}- Interest Rate: {{currentRate}}%{{/if}}
-{{#if currentLender}}- Current Lender: {{currentLender}}{{/if}}
+{{#if termRemaining}}- Term Remaining: {{termRemaining}} years{{/if}}
+{{#if productEndDate}}- Current Deal Ends: {{productEndDate}}{{/if}}
+{{#if earlyRepaymentCharges}}- Early Repayment Charges: {{earlyRepaymentCharges}}{{/if}}
 
-**Personal Details:**
+**Financial Situation:**
 {{#if annualIncome}}- Annual Income: £{{annualIncome}}{{/if}}
-{{#if employmentStatus}}- Employment: {{employmentStatus}}{{/if}}
+{{#if employmentStatus}}- Employment Status: {{employmentStatus}}{{/if}}
+{{#if creditScore}}- Credit Score: {{creditScore}}{{/if}}
+{{#if existingDebts}}- Other Debts: £{{existingDebts}}{{/if}}
+{{#if disposableIncome}}- Monthly Disposable Income: £{{disposableIncome}}{{/if}}
+{{#if availableDeposit}}- Available Funds: £{{availableDeposit}}{{/if}}
 
-**Objectives:**
+**Your Objectives:**
 {{#if primaryObjective}}- Primary Goal: {{primaryObjective}}{{/if}}
+{{#if preferredTerm}}- Preferred Term: {{preferredTerm}} years{{/if}}
+{{#if paymentPreference}}- Payment Preference: {{paymentPreference}}{{/if}}
+{{#if timeline}}- Timeline: {{timeline}}{{/if}}
+{{#if additionalContext}}- Additional Context: {{additionalContext}}{{/if}}
 
 ---
 

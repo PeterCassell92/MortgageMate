@@ -67,14 +67,16 @@ async function loadSystemPrompt(): Promise<string> {
 // Helper function to call LLM with either legacy or LangChain
 async function callLLM(
   messages: LLMMessage[],
-  options: { maxTokens: number; temperature: number },
+  options: { maxTokens: number; temperature: number; structuredOutput?: boolean },
   context?: { userId?: number; chatId?: string; numericalChatId?: number }
 ) {
   console.log(`[callLLM] Using ${useLangChain ? 'LangChain' : 'Legacy'} implementation`);
 
   // Extract system prompt and user message
   const systemMessage = messages.find(m => m.role === 'system');
-  const userMessage = messages.find(m => m.role === 'user');
+  // Get the LAST user message (not the first) for logging purposes
+  const userMessages = messages.filter(m => m.role === 'user');
+  const userMessage = userMessages[userMessages.length - 1];
 
   if (!systemMessage || !userMessage) {
     throw new Error('System and user messages are required');
@@ -110,23 +112,16 @@ async function callLLM(
       console.log('[callLLM] Calling LangChain service...');
 
       try {
-        // Escape curly braces in system prompt for LangChain template
-        // LangChain uses {variable} syntax, so we need to escape any literal braces
-        const escapedSystemPrompt = systemMessage.content
-          .replace(/\{/g, '{{')
-          .replace(/\}/g, '}}');
-
-        // Combine system prompt and user message into a single template
-        const template = `${escapedSystemPrompt}\n\n---\n\n{userMessage}`;
-
+        // Pass full messages array to LangChain (includes conversation history)
         const response = await langChainService.invoke({
-          template,
-          variables: {
-            userMessage: userMessage.content
-          },
+          messages: messages.map(m => ({
+            role: m.role,
+            content: m.content
+          })),
           options: {
             maxTokens: options.maxTokens,
-            temperature: options.temperature
+            temperature: options.temperature,
+            structuredOutput: options.structuredOutput || false
           }
         });
 
@@ -151,7 +146,8 @@ async function callLLM(
           provider: response.provider,
           model: response.model,
           llmRequestId: loggingResult?.requestId,
-          llmResponseId: responseId
+          llmResponseId: responseId,
+          extractedData: response.extractedData // Pass through structured data if present
         };
       } catch (llmError) {
         // Log failure for LangChain
@@ -432,7 +428,9 @@ router.post('/:numericalId/load', requireAuth, async (req: Request, res: Respons
         completenessScore: persistedChat.advisorSession.completenessScore,
         mortgageData: persistedChat.advisorSession.mortgageData,
         conversationHistory: persistedChat.conversationHistory || [],
-        lastAnalysis: persistedChat.advisorSession.lastAnalysis
+        lastAnalysis: persistedChat.advisorSession.lastAnalysis,
+        offerAnalysis: persistedChat.advisorSession.offerAnalysis,
+        userHasRequestedAnalysis: persistedChat.advisorSession.userHasRequestedAnalysis
       }
     });
     
@@ -610,15 +608,12 @@ router.post('/:numericalId', requireAuth, upload.array('documents', 5), async (r
       userMessage
     );
 
-    // Check if user is requesting analysis
-    const _requestingAnalysis = hasRequestedAnalysis ||
-      MortgageAdvisorService.isRequestingAnalysis(userMessage);
-
     // NEW: Use MortgageAdvisorService to generate contextual prompt with RAG data
+    // Note: Analysis request detection is now handled via LLM's proceedWithAnalysis field
     const enhancedSystemPrompt = await MortgageAdvisorService.generateContextualPrompt(
       updatedSession,
       userMessage,
-      _requestingAnalysis
+      false // hasRequestedAnalysis is deprecated - LLM decides via proceedWithAnalysis
     );
 
     // Add document context if files were uploaded
@@ -651,12 +646,14 @@ The user has uploaded documents with extracted data above. Use this information 
 
     // Adjust parameters based on advisor mode
     const isAnalysisMode = updatedSession.mode === 'analysis';
+    const isDataGatheringMode = updatedSession.mode === 'data_gathering';
 
     let response;
     try {
       response = await callLLM(messages, {
         maxTokens: isAnalysisMode ? 2000 : 1000,
-        temperature: isAnalysisMode ? 0.3 : 0.7
+        temperature: isAnalysisMode ? 0.3 : 0.7,
+        structuredOutput: isDataGatheringMode && useLangChain // Enable structured output for LangChain in data-gathering mode
       }, {
         userId,
         chatId,
@@ -677,12 +674,33 @@ The user has uploaded documents with extracted data above. Use this information 
     console.log(response.content.substring(0, 500)); // First 500 chars
     console.log('=== END RAW RESPONSE ===');
 
-    // Extract structured data and clean response for user
-    const { cleanedResponse, extractedData } = extractStructuredData(response.content);
+    // Extract structured data - use direct extraction if available, fallback to regex parsing
+    let extractedData: any = null;
+    let cleanedResponse = response.content;
+    let proceedWithAnalysis = false; // Default from LLM
 
-    // Debug: Log extraction results
-    console.log('=== EXTRACTION RESULTS ===');
-    console.log('Extracted data:', extractedData);
+    if (response.extractedData) {
+      // Structured output from LangChain - already parsed and validated
+      console.log('=== USING STRUCTURED OUTPUT ===');
+      console.log('Full extracted response:', JSON.stringify(response.extractedData, null, 2));
+
+      // Extract the proceedWithAnalysis boolean
+      if (response.extractedData.proceedWithAnalysis !== undefined) {
+        proceedWithAnalysis = response.extractedData.proceedWithAnalysis;
+        console.log('LLM decision - proceedWithAnalysis:', proceedWithAnalysis);
+      }
+
+      extractedData = { extractedData: response.extractedData.extractedData || response.extractedData };
+      // Response is already clean from structured output
+    } else {
+      // Fallback to regex-based extraction for legacy mode
+      console.log('=== USING LEGACY EXTRACTION ===');
+      const extracted = extractStructuredData(response.content);
+      cleanedResponse = extracted.cleanedResponse;
+      extractedData = extracted.extractedData;
+      console.log('Extracted data:', extractedData);
+    }
+
     console.log('=== END EXTRACTION ===');
 
     // Process any extracted data first
@@ -690,8 +708,31 @@ The user has uploaded documents with extracted data above. Use this information 
       // Update advisor session with extracted data
       const currentData = updatedSession.mortgageData;
       const newData = { ...currentData, ...extractedData.extractedData };
+
+      console.log('=== UPDATING MORTGAGE DATA ===');
+      console.log('Current data fields:', Object.keys(currentData).filter(k => currentData[k as keyof typeof currentData]));
+      console.log('New extracted fields:', Object.keys(extractedData.extractedData).filter(k => extractedData.extractedData[k]));
+      console.log('Merged data fields:', Object.keys(newData).filter(k => newData[k as keyof typeof newData]));
+
       updatedSession.mortgageData = newData;
       updatedSession.completenessScore = MortgageAdvisorService.calculateCompleteness(newData);
+
+      console.log('=== COMPLETENESS SCORE ===');
+      console.log('New completeness score:', updatedSession.completenessScore);
+      console.log('=== END UPDATE ===');
+    }
+
+    // Check if we should switch to analysis mode based on LLM's decision
+    if (proceedWithAnalysis) {
+      console.log('LLM detected user has requested analysis');
+      updatedSession.userHasRequestedAnalysis = true;
+
+      // Only switch to analysis mode if we also have all required data
+      if (MortgageAdvisorService.hasAllRequiredData(updatedSession.mortgageData)) {
+        console.log('=== SWITCHING TO ANALYSIS MODE ===');
+        console.log('All required data is complete - proceeding with analysis');
+        updatedSession.mode = 'analysis';
+      }
     }
     
     // Update session with AI response
@@ -728,6 +769,8 @@ The user has uploaded documents with extracted data above. Use this information 
         provider: response.provider,
         model: response.model,
         chatId: chatId,
+        offerAnalysis: finalSession.offerAnalysis,
+        userHasRequestedAnalysis: finalSession.userHasRequestedAnalysis
       }
     });
 
