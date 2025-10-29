@@ -1,3 +1,6 @@
+// Import official Vectorize types
+import type { Document } from '@vectorize-io/vectorize-client';
+
 export interface VectorizeConfig {
   url: string;
   organizationId: string;
@@ -16,11 +19,9 @@ export interface VectorizeSearchOptions {
   filters?: Record<string, any>;
 }
 
-export interface VectorizeDocument {
-  id: string;
-  content: any;
-  metadata?: Record<string, any>;
-  score?: number;
+// Extended Document type with parsed content
+export interface VectorizeDocument extends Document {
+  parsedContent?: any; // Parsed mortgage product data from text field
 }
 
 export interface VectorSearchResult {

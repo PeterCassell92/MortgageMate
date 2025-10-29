@@ -81,15 +81,16 @@ export class MortgageAdvisorService {
 
   static identifyMissingCriticalData(mortgageData: Partial<MortgageData>): string[] {
     const missing: string[] = [];
-    
-    // Check all required fields
+
+    // Check all required fields (must match REQUIRED_FIELDS exactly)
     if (!mortgageData.propertyLocation) missing.push('Property location');
     if (!mortgageData.propertyType) missing.push('Property type');
     if (!mortgageData.propertyValue) missing.push('Current property value');
     if (!mortgageData.currentBalance) missing.push('Outstanding mortgage balance');
     if (!mortgageData.monthlyPayment) missing.push('Current monthly payment');
     if (!mortgageData.annualIncome) missing.push('Annual household income');
-    
+    if (!mortgageData.currentRate) missing.push('Current interest rate');
+
     return missing;
   }
 
@@ -119,7 +120,9 @@ export class MortgageAdvisorService {
     switch (mode) {
       case 'data_gathering':
         // If all required data is collected, offer analysis confirmation
-        if (this.hasAllRequiredData(session.mortgageData)) {
+        const hasAllRequiredData = this.hasAllRequiredData(session.mortgageData);
+        const missing = this.identifyMissingCriticalData(session.mortgageData);
+        if (hasAllRequiredData) {
           templateType = 'analysis_confirmation';
           session.offerAnalysis = true;
         } else {

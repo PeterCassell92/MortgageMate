@@ -3,7 +3,7 @@ import { LLMService, createLLMService } from './llmService';
 import { LangChainService, createLangChainService } from './langChainService';
 import { PromptTemplate } from './MortgageConversation/prompts/prompt_scripts/PromptTemplate';
 import { SEARCH_QUERY_GENERATION_TEMPLATE, createSearchQueryVariables } from './prompts/langChainTemplates';
-import { MarketData, MortgageProduct } from '../types/vectorize';
+import { MarketData, MortgageProduct, VectorizeDocument } from '../types/vectorize';
 import type { MortgageData } from '@mortgagemate/models';
 
 export class MortgageMarketService {
@@ -129,12 +129,26 @@ export class MortgageMarketService {
   /**
    * Transform Vectorize search results to MortgageProduct array
    */
-  private transformSearchResults(documents: any[]): MortgageProduct[] {
-    return documents.map(doc => {
-      const product = doc.metadata || doc.content;
+  private transformSearchResults(documents: VectorizeDocument[]): MortgageProduct[] {
+    return documents.map((doc, index) => {
+      // Use the parsedContent field that contains the parsed mortgage product data
+      const product = doc.parsedContent;
+
+      // Debug: Log the first product transformation
+      if (index === 0) {
+        console.log('=== TRANSFORM DEBUG ===');
+        console.log('Document structure:', {
+          hasParsedContent: !!doc.parsedContent,
+          parsedContentKeys: doc.parsedContent ? Object.keys(doc.parsedContent) : [],
+          similarity: doc.similarity,
+          relevancy: doc.relevancy
+        });
+        console.log('Product after extraction:', product);
+      }
+
       return {
         ...product,
-        _score: doc.score
+        _score: doc.similarity || doc.relevancy || 0
       };
     });
   }

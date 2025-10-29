@@ -16,11 +16,49 @@ export class VectorizeService {
 
     // Initialize the official Vectorize client
     const configuration = new Configuration({
-      basePath: config.url || 'https://api.vectorize.io',
+      basePath: config.url || 'https://api.vectorize.io/v1',
       accessToken: config.apiKey
     });
 
     this.pipelinesApi = new PipelinesApi(configuration);
+  }
+
+  /**
+   * Parse Vectorize text field that contains product data in format: {key=value, key=value, ...}
+   */
+  private parseProductText(text: string): any {
+    if (!text) return {};
+
+    try {
+      // Remove outer braces and trim
+      const content = text.replace(/^\{|\}$/g, '').trim();
+
+      // Parse key=value pairs
+      // We need to be careful because some values contain commas
+      const result: any = {};
+
+      // Match patterns like: key=value where value can contain spaces but ends at , key= or end
+      const regex = /(\w+)=([^,}]+?)(?=,\s*\w+=|$)/g;
+      let match;
+
+      while ((match = regex.exec(content)) !== null) {
+        const key = match[1];
+        let value: any = match[2].trim();
+
+        // Convert numeric strings to numbers
+        if (value !== '' && !isNaN(Number(value))) {
+          value = Number(value);
+        }
+
+        result[key] = value;
+      }
+
+      console.log('Parsed product:', result);
+      return result;
+    } catch (error) {
+      console.error('Failed to parse product text:', error);
+      return {};
+    }
   }
 
   /**
@@ -51,12 +89,18 @@ export class VectorizeService {
 
       const processingTime = Date.now() - startTime;
 
+      // Debug: Log the raw response structure
+      if (response.documents && response.documents.length > 0) {
+        console.log('=== VECTORIZE RAW API RESPONSE ===');
+        console.log('Raw document keys:', Object.keys(response.documents[0]));
+        console.log('First document:', JSON.stringify(response.documents[0], null, 2));
+      }
+
       // Transform the response to our format
+      // Vectorize returns product data in the 'text' field as a string with key=value format
       const documents: VectorizeDocument[] = response.documents?.map((doc: any) => ({
-        id: doc.id || '',
-        content: doc.content || doc.data,
-        metadata: doc.metadata,
-        score: doc.score || doc.relevanceScore
+        ...doc, // Spread all official Document fields
+        parsedContent: this.parseProductText(doc.text) // Add parsed mortgage product data
       })) || [];
 
       console.log(`Vectorize returned ${documents.length} documents`);
