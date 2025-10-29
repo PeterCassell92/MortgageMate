@@ -32,13 +32,14 @@ import { useError } from '../contexts/ErrorContext';
 const ChatSidebarContent: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { 
-    chats, 
-    chatsLoading, 
+  const {
+    chats,
+    chatsLoading,
     chatsError,
     currentNumericalId,
     sidebarExpanded
   } = useAppSelector(state => state.chat);
+  const { isLoading } = useAppSelector(state => state.application);
   
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
@@ -137,6 +138,7 @@ const ChatSidebarContent: React.FC = () => {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleNewChat}
+          disabled={isLoading}
         >
           New Chat
         </Button>

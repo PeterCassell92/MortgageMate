@@ -1,37 +1,50 @@
+CRITICAL INSTRUCTIONS:
+Your ONLY task is to return the EXACT message below with conditionals processed. DO NOT generate your own response. DO NOT summarize. DO NOT paraphrase.
+
+Process the conditionals as follows:
+1. If a field value is "Not specified", COMPLETELY OMIT that entire line (do not show it at all)
+2. If a field has a real value, INCLUDE the line exactly as written with the value shown
+3. REMOVE all {{#if}} and {{/if}} markers from your output
+4. Return ONLY the processed message below - nothing else
+
+YOUR RESPONSE MUST BE THE MESSAGE BELOW (with conditionals processed):
+
+---
+
 Based on our conversation, I have now gathered all the essential information required for a comprehensive mortgage analysis:
 
 ## Information Collected ✅
 
 **Property Details:**
-{{#if propertyLocation}}- Location: {{propertyLocation}}{{/if}}
-{{#if propertyType}}- Property Type: {{propertyType}}{{/if}}
-{{#if propertyValue}}- Current Value: £{{propertyValue}}{{/if}}
-{{#if propertyUse}}- Property Use: {{propertyUse}}{{/if}}
+{{#if PROPERTY_LOCATION}}- Location: {{PROPERTY_LOCATION}}{{/if}}
+{{#if PROPERTY_TYPE}}- Property Type: {{PROPERTY_TYPE}}{{/if}}
+{{#if PROPERTY_VALUE}}- Current Value: {{PROPERTY_VALUE}}{{/if}}
+{{#if PROPERTY_USE}}- Property Use: {{PROPERTY_USE}}{{/if}}
 
 **Current Mortgage:**
-{{#if currentLender}}- Current Lender: {{currentLender}}{{/if}}
-{{#if mortgageType}}- Mortgage Type: {{mortgageType}}{{/if}}
-{{#if currentBalance}}- Outstanding Balance: £{{currentBalance}}{{/if}}
-{{#if monthlyPayment}}- Monthly Payment: £{{monthlyPayment}}{{/if}}
-{{#if currentRate}}- Interest Rate: {{currentRate}}%{{/if}}
-{{#if termRemaining}}- Term Remaining: {{termRemaining}} years{{/if}}
-{{#if productEndDate}}- Current Deal Ends: {{productEndDate}}{{/if}}
-{{#if earlyRepaymentCharges}}- Early Repayment Charges: {{earlyRepaymentCharges}}{{/if}}
+{{#if CURRENT_LENDER}}- Current Lender: {{CURRENT_LENDER}}{{/if}}
+{{#if MORTGAGE_TYPE}}- Mortgage Type: {{MORTGAGE_TYPE}}{{/if}}
+{{#if CURRENT_BALANCE}}- Outstanding Balance: {{CURRENT_BALANCE}}{{/if}}
+{{#if MONTHLY_PAYMENT}}- Monthly Payment: {{MONTHLY_PAYMENT}}{{/if}}
+{{#if CURRENT_RATE}}- Interest Rate: {{CURRENT_RATE}}{{/if}}
+{{#if TERM_REMAINING}}- Term Remaining: {{TERM_REMAINING}}{{/if}}
+{{#if PRODUCT_END_DATE}}- Current Deal Ends: {{PRODUCT_END_DATE}}{{/if}}
+{{#if EARLY_REPAYMENT_CHARGES}}- Early Repayment Charges: {{EARLY_REPAYMENT_CHARGES}}{{/if}}
 
 **Financial Situation:**
-{{#if annualIncome}}- Annual Income: £{{annualIncome}}{{/if}}
-{{#if employmentStatus}}- Employment Status: {{employmentStatus}}{{/if}}
-{{#if creditScore}}- Credit Score: {{creditScore}}{{/if}}
-{{#if existingDebts}}- Other Debts: £{{existingDebts}}{{/if}}
-{{#if disposableIncome}}- Monthly Disposable Income: £{{disposableIncome}}{{/if}}
-{{#if availableDeposit}}- Available Funds: £{{availableDeposit}}{{/if}}
+{{#if ANNUAL_INCOME}}- Annual Income: {{ANNUAL_INCOME}}{{/if}}
+{{#if EMPLOYMENT_STATUS}}- Employment Status: {{EMPLOYMENT_STATUS}}{{/if}}
+{{#if CREDIT_SCORE}}- Credit Score: {{CREDIT_SCORE}}{{/if}}
+{{#if EXISTING_DEBTS}}- Other Debts: {{EXISTING_DEBTS}}{{/if}}
+{{#if DISPOSABLE_INCOME}}- Monthly Disposable Income: {{DISPOSABLE_INCOME}}{{/if}}
+{{#if AVAILABLE_DEPOSIT}}- Available Funds: {{AVAILABLE_DEPOSIT}}{{/if}}
 
 **Your Objectives:**
-{{#if primaryObjective}}- Primary Goal: {{primaryObjective}}{{/if}}
-{{#if preferredTerm}}- Preferred Term: {{preferredTerm}} years{{/if}}
-{{#if paymentPreference}}- Payment Preference: {{paymentPreference}}{{/if}}
-{{#if timeline}}- Timeline: {{timeline}}{{/if}}
-{{#if additionalContext}}- Additional Context: {{additionalContext}}{{/if}}
+{{#if PRIMARY_OBJECTIVE}}- Primary Goal: {{PRIMARY_OBJECTIVE}}{{/if}}
+{{#if PREFERRED_TERM}}- Preferred Term: {{PREFERRED_TERM}}{{/if}}
+{{#if PAYMENT_PREFERENCE}}- Payment Preference: {{PAYMENT_PREFERENCE}}{{/if}}
+{{#if TIMELINE}}- Timeline: {{TIMELINE}}{{/if}}
+{{#if ADDITIONAL_CONTEXT}}- Additional Context: {{ADDITIONAL_CONTEXT}}{{/if}}
 
 ---
 

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { ChatService, ChatSummary } from '../../services/chatService';
+import { setLoading } from './applicationSlice';
 
 interface ChatMessage {
   id: string;
@@ -90,17 +91,24 @@ export const loadChatList = createAsyncThunk(
 
 export const createNewChat = createAsyncThunk(
   'chat/createNewChat',
-  async (title: string = 'New Chat', { rejectWithValue }) => {
+  async (title: string = 'New Chat', { rejectWithValue, dispatch }) => {
     try {
+      // Set application loading state
+      dispatch(setLoading(true));
+
       const chatService = ChatService.getInstance();
       const response = await chatService.createNewChat(title);
-      
+
       if (!response.success) {
         throw new Error(response.error || 'Failed to create new chat');
       }
-      
+
+      // Clear loading state on success
+      dispatch(setLoading(false));
       return response.data;
     } catch (error: unknown) {
+      // Clear loading state on error
+      dispatch(setLoading(false));
       const message = error instanceof Error ? error.message : 'An unknown error occurred';
       return rejectWithValue(message);
     }

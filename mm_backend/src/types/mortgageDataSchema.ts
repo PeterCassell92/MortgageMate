@@ -1,6 +1,17 @@
 import { z } from 'zod';
 
 /**
+ * Helper to convert "Not specified" strings to undefined
+ * LLMs sometimes return "Not specified" even when instructed to omit fields
+ */
+const cleanNotSpecified = <T>(value: T | string): T | undefined => {
+  if (typeof value === 'string' && (value === 'Not specified' || value === '<UNKNOWN>')) {
+    return undefined;
+  }
+  return value as T;
+};
+
+/**
  * Zod schema for extracting structured mortgage data from LLM responses
  * This matches the MortgageData interface but focuses on extractable fields
  *
@@ -19,7 +30,7 @@ export const MortgageDataExtractionSchema = z.object({
   currentBalance: z.number().optional().describe("Outstanding mortgage balance in pounds"),
   monthlyPayment: z.number().optional().describe("Current monthly mortgage payment in pounds"),
   currentRate: z.number().optional().describe("Current interest rate as a percentage (e.g., 5.35 for 5.35%)"),
-  termRemaining: z.number().optional().describe("Remaining mortgage term in years"),
+  termRemaining: z.preprocess(cleanNotSpecified, z.number().optional()).describe("Remaining mortgage term in years"),
   productEndDate: z.string().optional().describe("When current mortgage deal/product ends"),
   exitFees: z.string().optional().describe("Exit fees or early repayment charges description"),
   earlyRepaymentCharges: z.string().optional().describe("Details of early repayment charge structure"),
@@ -28,14 +39,14 @@ export const MortgageDataExtractionSchema = z.object({
   annualIncome: z.number().optional().describe("Total annual household income in pounds. ONLY include if explicitly provided - omit entirely if unknown."),
   employmentStatus: z.string().optional().describe("Employment status: employed, self-employed, retired, etc. ONLY include if explicitly provided - omit entirely if unknown."),
   creditScore: z.string().optional().describe("Credit score range or rating. ONLY include if explicitly provided - omit entirely if unknown."),
-  existingDebts: z.number().optional().describe("Total other debts excluding mortgage in pounds. ONLY include if explicitly provided - omit entirely if unknown, do NOT use placeholder strings like '<UNKNOWN>'."),
-  disposableIncome: z.number().optional().describe("Monthly disposable income in pounds. ONLY include if explicitly provided - omit entirely if unknown, do NOT use placeholder strings like '<UNKNOWN>'."),
-  availableDeposit: z.number().optional().describe("Additional deposit available for remortgaging in pounds. ONLY include if explicitly provided - omit entirely if unknown, do NOT use placeholder strings like '<UNKNOWN>'."),
+  existingDebts: z.preprocess(cleanNotSpecified, z.number().optional()).describe("Total other debts excluding mortgage in pounds. ONLY include if explicitly provided - omit entirely if unknown, do NOT use placeholder strings like '<UNKNOWN>'."),
+  disposableIncome: z.preprocess(cleanNotSpecified, z.number().optional()).describe("Monthly disposable income in pounds. ONLY include if explicitly provided - omit entirely if unknown, do NOT use placeholder strings like '<UNKNOWN>'."),
+  availableDeposit: z.preprocess(cleanNotSpecified, z.number().optional()).describe("Additional deposit available for remortgaging in pounds. ONLY include if explicitly provided - omit entirely if unknown, do NOT use placeholder strings like '<UNKNOWN>'."),
 
   // Goals & Preferences
   primaryObjective: z.string().optional().describe("Main goal: lower payments, reduce term, cash out equity, etc. ONLY include if explicitly provided - omit entirely if unknown."),
   riskTolerance: z.string().optional().describe("Risk appetite: low, medium, high. ONLY include if explicitly provided - omit entirely if unknown."),
-  preferredTerm: z.number().optional().describe("Preferred mortgage term length in years. ONLY include if explicitly provided - omit entirely if unknown, do NOT use placeholder strings like '<UNKNOWN>'."),
+  preferredTerm: z.preprocess(cleanNotSpecified, z.number().optional()).describe("Preferred mortgage term length in years. ONLY include if explicitly provided - omit entirely if unknown, do NOT use placeholder strings like '<UNKNOWN>'."),
   paymentPreference: z.string().optional().describe("Payment preference: minimize monthly, minimize total cost, flexibility. ONLY include if explicitly provided - omit entirely if unknown."),
   timeline: z.string().optional().describe("Timeline for changes: urgent, flexible, specific date"),
 
@@ -58,9 +69,20 @@ export const ConversationalResponseWithDataSchema = z.object({
   extractedData: z.union([
     MortgageDataExtractionSchema,
     z.string()
-  ]).describe("A JSON OBJECT containing structured data extracted from this conversation. CRITICAL RULES: 1) Return as an actual object with the fields defined in the schema. 2) ONLY include fields where the user explicitly provided information. 3) Completely OMIT any fields that are unknown - do NOT include them at all. 4) For number fields, use actual numbers or omit them entirely."),
+  ]).describe("A JSON OBJECT containing structured data extracted from this conversation. CRITICAL RULES: 1) Return as an actual object with the fields defined in the schema. 2) ONLY include fields where the user explicitly provided NEW information in THIS message. 3) Completely OMIT any fields that are unknown - do NOT include them at all, not even with 'Not specified' or placeholder values. 4) For number fields, use actual numbers or omit them entirely - NEVER use string values like 'Not specified'. 5) Return an empty object {} if no new data was extracted from this message."),
   proceedWithAnalysis: z.boolean().describe("Set to TRUE if the user is requesting, confirming, or agreeing to proceed with a comprehensive mortgage analysis (e.g., 'yes', 'proceed', 'analyze', 'do it', 'go ahead', 'please analyze'). Set to FALSE otherwise. This should be TRUE when the user gives affirmative consent to start the analysis."),
   reasoning: z.string().optional().describe("Brief internal reasoning about what data was extracted (not shown to user)")
 });
 
 export type ConversationalResponseWithData = z.infer<typeof ConversationalResponseWithDataSchema>;
+
+/**
+ * Simplified schema for detecting user's response to analysis confirmation
+ * Used when offerAnalysis = true - we only need to detect if user wants to proceed
+ */
+export const AnalysisConfirmationResponseSchema = z.object({
+  response: z.string().describe("Natural, conversational response to the user"),
+  proceedWithAnalysis: z.boolean().describe("Set to TRUE if the user is requesting, confirming, or agreeing to proceed with a comprehensive mortgage analysis (e.g., 'yes', 'proceed', 'analyze', 'do it', 'go ahead', 'please analyze'). Set to FALSE otherwise. This should be TRUE when the user gives affirmative consent to start the analysis."),
+});
+
+export type AnalysisConfirmationResponse = z.infer<typeof AnalysisConfirmationResponseSchema>;

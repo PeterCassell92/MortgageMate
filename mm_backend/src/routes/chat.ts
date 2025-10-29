@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { createLLMService } from '../services/llmService';
-import { createLangChainService } from '../services/langChainService';
+import { createLangChainService, type SchemaType } from '../services/langChainService';
 import { LLMLoggingService } from '../services/llmLoggingService';
 import { LLMMessage } from '../types/llm';
 import { MortgageAdvisorService, AdvisorSession } from '../services/MortgageConversation/mortgageAdvisorService';
@@ -67,7 +67,7 @@ async function loadSystemPrompt(): Promise<string> {
 // Helper function to call LLM with either legacy or LangChain
 async function callLLM(
   messages: LLMMessage[],
-  options: { maxTokens: number; temperature: number; structuredOutput?: boolean },
+  options: { maxTokens: number; temperature: number; structuredOutput?: boolean; schemaType?: SchemaType },
   context?: { userId?: number; chatId?: string; numericalChatId?: number }
 ) {
   console.log(`[callLLM] Using ${useLangChain ? 'LangChain' : 'Legacy'} implementation`);
@@ -121,7 +121,8 @@ async function callLLM(
           options: {
             maxTokens: options.maxTokens,
             temperature: options.temperature,
-            structuredOutput: options.structuredOutput || false
+            structuredOutput: options.structuredOutput || false,
+            schemaType: options.schemaType
           }
         });
 
@@ -609,11 +610,11 @@ router.post('/:numericalId', requireAuth, upload.array('documents', 5), async (r
     );
 
     // NEW: Use MortgageAdvisorService to generate contextual prompt with RAG data
-    // Note: Analysis request detection is now handled via LLM's proceedWithAnalysis field
+    // Pass userHasRequestedAnalysis from session to determine correct mode
     const enhancedSystemPrompt = await MortgageAdvisorService.generateContextualPrompt(
       updatedSession,
       userMessage,
-      false // hasRequestedAnalysis is deprecated - LLM decides via proceedWithAnalysis
+      updatedSession.userHasRequestedAnalysis || false
     );
 
     // Add document context if files were uploaded
@@ -650,10 +651,17 @@ The user has uploaded documents with extracted data above. Use this information 
 
     let response;
     try {
+      // Determine which schema to use based on whether we're waiting for analysis confirmation
+      const schemaType: SchemaType = updatedSession.offerAnalysis
+        ? 'ResponseToAnalysisOfferStructuredSchema'
+        : 'MortgageDataStructuredSchema';
+
       response = await callLLM(messages, {
         maxTokens: isAnalysisMode ? 2000 : 1000,
         temperature: isAnalysisMode ? 0.3 : 0.7,
-        structuredOutput: isDataGatheringMode && useLangChain // Enable structured output for LangChain in data-gathering mode
+        // Enable structured output for LangChain in data-gathering mode to get proceedWithAnalysis
+        structuredOutput: isDataGatheringMode && useLangChain,
+        schemaType: schemaType
       }, {
         userId,
         chatId,
@@ -679,18 +687,26 @@ The user has uploaded documents with extracted data above. Use this information 
     let cleanedResponse = response.content;
     let proceedWithAnalysis = false; // Default from LLM
 
-    if (response.extractedData) {
+    // Check for structured output from LangChain
+    // Can be in response.extractedData (full schema) or directly on response (simplified schema)
+    if (response.extractedData || (response as any).proceedWithAnalysis !== undefined) {
       // Structured output from LangChain - already parsed and validated
       console.log('=== USING STRUCTURED OUTPUT ===');
-      console.log('Full extracted response:', JSON.stringify(response.extractedData, null, 2));
+      console.log('Full extracted response:', JSON.stringify(response.extractedData || { proceedWithAnalysis: (response as any).proceedWithAnalysis }, null, 2));
 
-      // Extract the proceedWithAnalysis boolean
-      if (response.extractedData.proceedWithAnalysis !== undefined) {
+      // Extract the proceedWithAnalysis boolean from either location
+      if (response.extractedData?.proceedWithAnalysis !== undefined) {
+        // Full schema with extractedData
         proceedWithAnalysis = response.extractedData.proceedWithAnalysis;
         console.log('LLM decision - proceedWithAnalysis:', proceedWithAnalysis);
+        extractedData = { extractedData: response.extractedData.extractedData || response.extractedData };
+      } else if ((response as any).proceedWithAnalysis !== undefined) {
+        // Simplified schema - proceedWithAnalysis on root
+        proceedWithAnalysis = (response as any).proceedWithAnalysis;
+        console.log('LLM decision - proceedWithAnalysis (simplified schema):', proceedWithAnalysis);
+        extractedData = null; // No mortgage data in simplified schema
       }
 
-      extractedData = { extractedData: response.extractedData.extractedData || response.extractedData };
       // Response is already clean from structured output
     } else {
       // Fallback to regex-based extraction for legacy mode
@@ -703,8 +719,11 @@ The user has uploaded documents with extracted data above. Use this information 
 
     console.log('=== END EXTRACTION ===');
 
-    // Process any extracted data first
-    if (extractedData?.extractedData) {
+    // Process any extracted data first (but only during data gathering phase)
+    // Skip data extraction when offering analysis, performing analysis, or in followup mode
+    const shouldExtractData = updatedSession.mode === 'data_gathering' && !updatedSession.offerAnalysis;
+
+    if (extractedData?.extractedData && shouldExtractData) {
       // Update advisor session with extracted data
       const currentData = updatedSession.mortgageData;
       const newData = { ...currentData, ...extractedData.extractedData };
@@ -720,6 +739,10 @@ The user has uploaded documents with extracted data above. Use this information 
       console.log('=== COMPLETENESS SCORE ===');
       console.log('New completeness score:', updatedSession.completenessScore);
       console.log('=== END UPDATE ===');
+    } else if (extractedData?.extractedData && !shouldExtractData) {
+      console.log('=== SKIPPING DATA EXTRACTION ===');
+      console.log(`Mode: ${updatedSession.mode}, offerAnalysis: ${updatedSession.offerAnalysis}`);
+      console.log('Data extraction skipped - not in active data gathering phase');
     }
 
     // Check if we should switch to analysis mode based on LLM's decision
@@ -732,6 +755,53 @@ The user has uploaded documents with extracted data above. Use this information 
         console.log('=== SWITCHING TO ANALYSIS MODE ===');
         console.log('All required data is complete - proceeding with analysis');
         updatedSession.mode = 'analysis';
+
+        // IMMEDIATELY trigger the analysis by generating a new prompt and calling LLM again
+        console.log('=== TRIGGERING IMMEDIATE ANALYSIS ===');
+
+        // Generate mortgage_analysis prompt with the new mode
+        // Pass true for hasRequestedAnalysis so determineAdvisorMode returns 'analysis'
+        const analysisPrompt = await MortgageAdvisorService.generateContextualPrompt(
+          updatedSession,
+          userMessage,
+          true // User has explicitly requested analysis
+        );
+
+        // Build messages for analysis
+        const analysisMessages: LLMMessage[] = [
+          { role: 'system', content: analysisPrompt },
+          ...conversationHistory,
+          { role: 'user', content: 'Please provide the comprehensive mortgage analysis now.' }
+        ];
+
+        console.log('Calling LLM for mortgage analysis with enhanced parameters...');
+
+        // Call LLM with enhanced parameters for analysis
+        const analysisResponse = await callLLM(
+          analysisMessages,
+          {
+            temperature: 0.7, // Slightly more creative for analysis
+            maxTokens: 4000,  // More tokens for comprehensive analysis
+            structuredOutput: false // Analysis doesn't need structured extraction
+          },
+          {
+            userId,
+            chatId,
+            numericalChatId: numericalId
+          }
+        );
+
+        // Replace the response with the actual analysis
+        cleanedResponse = analysisResponse.content;
+        console.log('=== ANALYSIS COMPLETE ===');
+        console.log('Analysis response length:', cleanedResponse.length);
+
+        // Update the response object to include analysis LLM request/response IDs
+        (response as any).llmRequestId = (analysisResponse as any).llmRequestId;
+        (response as any).llmResponseId = (analysisResponse as any).llmResponseId;
+        response.usage = analysisResponse.usage;
+        response.provider = analysisResponse.provider;
+        response.model = analysisResponse.model;
       }
     }
     

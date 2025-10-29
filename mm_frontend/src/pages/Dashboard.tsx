@@ -6,6 +6,7 @@ import AppHeader from '../components/AppHeader';
 import Chat from '../components/Chat';
 import Sidebar from '../components/Sidebar';
 import ChatSidebarContent from '../components/ChatSidebarContent';
+import LoadingOverlay from '../components/LoadingOverlay';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { loadExistingChat, createNewChat, loadChatList } from '../store/slices/chatSlice';
 
@@ -106,6 +107,9 @@ const Dashboard: React.FC = () => {
           />
         </Box>
       </Box>
+
+      {/* Application-level loading overlay */}
+      <LoadingOverlay />
     </Box>
   );
 };

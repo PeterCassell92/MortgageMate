@@ -4,7 +4,7 @@ import { AuthResponse, LoginRequest, RegisterRequest } from '../types/auth';
 // Create a separate axios instance for auth that doesn't have token interceptors
 const authClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4321',
-  timeout: 30000,
+  timeout: 60000, // 60 seconds timeout (consistent with main apiClient)
   headers: {
     'Content-Type': 'application/json',
   },

@@ -3,7 +3,14 @@ import { ChatOpenAI } from '@langchain/openai';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from '@langchain/core/messages';
 import { LLMProvider } from '../types/llm';
-import { ConversationalResponseWithDataSchema, type ConversationalResponseWithData } from '../types/mortgageDataSchema';
+import {
+  ConversationalResponseWithDataSchema,
+  type ConversationalResponseWithData,
+  AnalysisConfirmationResponseSchema,
+  type AnalysisConfirmationResponse
+} from '../types/mortgageDataSchema';
+
+export type SchemaType = 'MortgageDataStructuredSchema' | 'ResponseToAnalysisOfferStructuredSchema';
 
 export interface LangChainMessage {
   role: 'system' | 'user' | 'assistant';
@@ -22,6 +29,7 @@ export interface LangChainRequest {
     maxTokens?: number;
     provider?: 'anthropic' | 'openai' | 'mock';
     structuredOutput?: boolean; // Enable structured output with Zod schema
+    schemaType?: SchemaType; // Which schema to use for structured output
   };
 }
 
@@ -94,23 +102,33 @@ export class LangChainService {
 
       // Use structured output if requested
       if (request.options?.structuredOutput) {
-        console.log('[LangChainService] Using structured output with Zod schema');
+        const schemaType = request.options.schemaType || 'MortgageDataStructuredSchema';
+        console.log(`[LangChainService] Using structured output with schema: ${schemaType}`);
+
+        // Select the appropriate schema based on schemaType
+        const schema = schemaType === 'ResponseToAnalysisOfferStructuredSchema'
+          ? AnalysisConfirmationResponseSchema
+          : ConversationalResponseWithDataSchema;
+
+        const schemaName = schemaType === 'ResponseToAnalysisOfferStructuredSchema'
+          ? "analysis_confirmation_response"
+          : "mortgage_data_extraction";
 
         // Apply structured output schema to the LLM
-        const structuredLLM = llm.withStructuredOutput(ConversationalResponseWithDataSchema, {
-          name: "mortgage_data_extraction"
+        const structuredLLM = llm.withStructuredOutput(schema, {
+          name: schemaName
         });
 
-        let structuredResponse: ConversationalResponseWithData;
+        let structuredResponse: ConversationalResponseWithData | AnalysisConfirmationResponse;
 
         if (langChainMessages) {
           // Use message array directly
-          structuredResponse = await structuredLLM.invoke(langChainMessages) as ConversationalResponseWithData;
+          structuredResponse = await structuredLLM.invoke(langChainMessages);
         } else {
           // Use template (legacy)
           const promptTemplate = PromptTemplate.fromTemplate(request.template!);
           const chain = promptTemplate.pipe(structuredLLM);
-          structuredResponse = await chain.invoke(request.variables || {}) as ConversationalResponseWithData;
+          structuredResponse = await chain.invoke(request.variables || {});
         }
 
         // Extract usage from the raw response (if available)
@@ -122,7 +140,8 @@ export class LangChainService {
         };
 
         // Fix: If extractedData comes back as a JSON string, parse it
-        let extractedData: any = structuredResponse.extractedData;
+        // Note: AnalysisConfirmationResponse doesn't have extractedData, only ConversationalResponseWithData does
+        let extractedData: any = 'extractedData' in structuredResponse ? structuredResponse.extractedData : undefined;
         if (typeof extractedData === 'string') {
           console.log('[LangChainService] extractedData is a string, parsing...');
           try {
@@ -152,15 +171,20 @@ export class LangChainService {
         console.log('[LangChainService] Structured response received:', {
           hasResponse: !!structuredResponse.response,
           hasExtractedData: !!extractedData,
-          extractedFieldCount: Object.keys(extractedData || {}).length
+          extractedFieldCount: Object.keys(extractedData || {}).length,
+          hasProceedWithAnalysis: 'proceedWithAnalysis' in structuredResponse
         });
 
+        // Return the full structured response to preserve all fields (including proceedWithAnalysis)
         return {
           content: structuredResponse.response,
           usage,
           provider,
           model: 'claude-sonnet-4-20250514',
-          extractedData
+          extractedData: {
+            ...structuredResponse,
+            extractedData // Preserve nested extractedData if it exists
+          }
         };
       }
 
