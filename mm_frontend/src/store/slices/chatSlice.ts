@@ -1,13 +1,14 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { ChatService, ChatSummary } from '../../services/chatService';
 import { setLoading } from './applicationSlice';
+import { UploadedDocument } from '../../types/document';
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: string; // ISO string instead of Date object for Redux serialization
-  documents?: File[];
+  documents?: UploadedDocument[];
   advisorMode?: 'data_gathering' | 'analysis' | 'followup';
   completenessScore?: number;
   missingFields?: string[];
@@ -136,14 +137,14 @@ export const loadExistingChat = createAsyncThunk(
 
 export const sendMessage = createAsyncThunk(
   'chat/sendMessage',
-  async ({ 
-    userMessage, 
-    hasRequestedAnalysis = false, 
-    documents = [] 
-  }: { 
-    userMessage: string; 
-    hasRequestedAnalysis?: boolean; 
-    documents?: File[] 
+  async ({
+    userMessage,
+    hasRequestedAnalysis = false,
+    documents = []
+  }: {
+    userMessage: string;
+    hasRequestedAnalysis?: boolean;
+    documents?: File[]
   }, { rejectWithValue }) => {
     try {
       const chatService = ChatService.getInstance();
@@ -197,12 +198,20 @@ const chatSlice = createSlice({
       state.missingFields = [];
     },
     addUserMessage: (state, action: PayloadAction<{ content: string; documents?: File[] }>) => {
+      // Convert File[] to UploadedDocument[] for storage
+      const uploadedDocs: UploadedDocument[] | undefined = action.payload.documents?.map(file => ({
+        id: `${Date.now()}-${file.name}`,
+        name: file.name,
+        size: file.size,
+        category: undefined, // Will be set by backend response
+      }));
+
       const message: ChatMessage = {
         id: Date.now().toString(),
         role: 'user',
         content: action.payload.content,
         timestamp: new Date().toISOString(),
-        documents: action.payload.documents,
+        documents: uploadedDocs,
       };
       state.messages.push(message);
     },
