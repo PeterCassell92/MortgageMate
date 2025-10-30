@@ -1,0 +1,44 @@
+# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy backend (which now includes models)
+COPY mm_backend/package.json mm_backend/yarn.lock ./
+COPY mm_backend/src ./src
+COPY mm_backend/models ./models
+COPY mm_backend/prisma ./prisma
+COPY mm_backend/tsconfig.json ./tsconfig.json
+
+# Install dependencies
+RUN yarn install --frozen-lockfile
+
+# Generate Prisma Client
+RUN npx prisma generate
+
+# Build TypeScript (use yarn build, not yarn tsc which is --noEmit)
+RUN yarn build && \
+    echo "=== Build complete ===" && \
+    ls -la dist/
+
+# Production stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY mm_backend/package.json mm_backend/yarn.lock ./
+
+# Install production dependencies only
+RUN yarn install --production --frozen-lockfile
+
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/prisma ./prisma
+
+# Expose port
+EXPOSE 4321
+
+# Run migrations and start app
+CMD npx prisma migrate deploy && node dist/src/index.js
