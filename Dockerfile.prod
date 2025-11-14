@@ -21,6 +21,9 @@ RUN yarn build && \
     echo "=== Build complete ===" && \
     ls -la dist/
 
+# Compile seed script separately
+RUN npx tsc prisma/seed.ts --outDir dist/prisma --module commonjs --target es2020 --esModuleInterop --skipLibCheck
+
 # Production stage
 FROM node:20-alpine
 
@@ -37,8 +40,14 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/prisma ./prisma
 
+# Copy prompt templates (needed at runtime, not copied by tsc)
+COPY mm_backend/src/services/MortgageConversation/prompts/prompt_templates ./dist/src/services/MortgageConversation/prompts/prompt_templates
+
+# Copy compiled seed script
+COPY --from=builder /app/dist/prisma/seed.js ./dist/prisma/seed.js
+
 # Expose port
 EXPOSE 4321
 
-# Run migrations and start app
-CMD npx prisma migrate deploy && node dist/src/index.js
+# Run migrations, seed database, and start app
+CMD npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/index.js

@@ -6,6 +6,12 @@ The inspiration for the project was a conversation I had with Claude asking it f
 
 I want to help future me and potentially other people get to a good prompt so they can easily be presented with actionable data and an understanding of their best mortgage options.
 
+## 🚀 Deployed Application
+
+**Live App:** https://mortgagemate-ai.netlify.app/
+
+**Backend API:** https://mortgagemate-backend.fly.dev/
+
 ## Method
 
 To achieve good mortgage advice outcomes we need to make it as easy as possible for a user to generate a good prompt that describes their entire present mortgage situation.

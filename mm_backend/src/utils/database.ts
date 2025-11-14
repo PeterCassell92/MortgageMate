@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '../.env' });
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URI,
-  // Fallback to individual environment variables if DATABASE_URI is not set
+  connectionString: process.env.DATABASE_URL || process.env.DATABASE_URI,
+  // Fallback to individual environment variables if neither DATABASE_URL nor DATABASE_URI is set
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME,
