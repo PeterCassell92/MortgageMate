@@ -112,6 +112,176 @@ Type-safe database client with schema management and migrations, ensuring databa
 
 ---
 
+## 💻 Development Setup
+
+### Prerequisites
+- [Docker](https://www.docker.com/get-started) and Docker Compose
+- [Node.js](https://nodejs.org/) 18+ (if running outside Docker)
+- [Yarn](https://yarnpkg.com/) package manager
+
+### Quick Start
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/yourusername/MortgageCalculator.git
+cd MortgageCalculator
+```
+
+**2. Set up environment variables**
+```bash
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env and add your API keys
+# ANTHROPIC_API_KEY=your-key-here
+# LLM_PROVIDER=anthropic (or 'mock' for development)
+```
+
+**3. Start all services with Docker Compose**
+```bash
+# Start frontend, backend, and PostgreSQL
+docker-compose up
+
+# Or run in background
+docker-compose up -d
+
+# Rebuild containers and update dependencies
+docker-compose up --build
+```
+
+This will start:
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:5000
+- **PostgreSQL:** localhost:5433
+
+**4. Stop services**
+```bash
+docker-compose down
+```
+
+### Database Migrations
+
+The project uses Prisma for database schema management:
+
+```bash
+# Generate Prisma client from schema
+cd mm_backend
+npx prisma generate
+
+# Create a new migration
+npx prisma migrate dev --name your_migration_name
+
+# Apply migrations to production
+npx prisma migrate deploy
+
+# Reset database (WARNING: deletes all data)
+npx prisma migrate reset
+
+# View database in Prisma Studio
+npx prisma studio
+```
+
+### Manual Development (Alternative to Docker)
+
+If you prefer running services individually:
+
+**Backend:**
+```bash
+cd mm_backend
+yarn install
+yarn dev
+```
+
+**Frontend:**
+```bash
+cd mm_frontend
+yarn install
+yarn dev
+```
+
+**Database:**
+Ensure PostgreSQL is running locally with the `mortgagemate_dev` database created.
+
+### Environment Variables
+
+Key environment variables for development:
+
+**Backend (`.env`):**
+```bash
+# LLM Configuration
+ANTHROPIC_API_KEY=your-key-here
+LLM_PROVIDER=anthropic          # or 'mock' for testing
+LLM_IMPLEMENTATION=langchain    # or 'legacy'
+MOCK_LLM=false
+
+# Database
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/mortgagemate_dev
+
+# Vectorize (RAG)
+VECTORIZE_API_KEY=your-vectorize-key
+VECTORIZE_INDEX_ID=your-index-id
+
+# LangSmith (optional)
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your-langsmith-key
+```
+
+### TypeScript Type Checking
+
+Before committing changes, always run TypeScript checks:
+
+```bash
+# Frontend
+cd mm_frontend
+yarn type-check
+
+# Backend
+cd mm_backend
+yarn build
+```
+
+### Debugging
+
+**VS Code Debugger (Recommended):**
+
+Debugging the Docker-hosted backend can be challenging in VS Code. For easier debugging, use the included launch configuration to run the backend locally:
+
+1. **Stop the Docker backend** (keep frontend and database running):
+   ```bash
+   docker-compose stop backend
+   ```
+
+2. **Start VS Code debugger:**
+   - Open the project in VS Code
+   - Go to Run & Debug (Ctrl+Shift+D / Cmd+Shift+D)
+   - Select **"Debug Backend (Local)"** from the dropdown
+   - Press F5 or click the green play button
+
+This will:
+- Start the backend locally (outside Docker) in debug mode with `yarn dev`
+- Attach the VS Code debugger with full breakpoint support
+- Load environment variables from `.env`
+- Enable breakpoints, variable inspection, step-through debugging, and watch expressions
+- Output logs to the integrated terminal
+- Connect to the Docker-hosted PostgreSQL database
+
+**Configuration location:** [.vscode/launch.json](.vscode/launch.json)
+
+**Manual debugging (without VS Code):**
+```bash
+cd mm_backend
+node --inspect -r ts-node/register src/index.ts
+```
+
+Then attach your debugger to `localhost:9229`.
+
+**Note:** When finished debugging, restart the Docker backend:
+```bash
+docker-compose start backend
+```
+
+---
+
 ## Development Tools - MCPs (Model Context Protocol)
 
 This project uses several MCP servers to enhance Claude Code's capabilities during development. MCPs are configured in `.mcp.json` at the root of the project.
