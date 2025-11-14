@@ -12,6 +12,30 @@ Online tools like CompareTheMarket show available mortgage options, and countles
 
 **Backend API:** https://mortgagemate-backend.fly.dev/
 
+## 📦 Deployment
+
+### Frontend - Netlify
+The React frontend is deployed to Netlify with automatic deployments from the main branch. Build configuration:
+- **Build Command:** `yarn build`
+- **Publish Directory:** `mm_frontend/dist`
+- **Environment Variables:** Configured in Netlify dashboard
+
+### Backend - Fly.io
+The Express backend runs on Fly.io with PostgreSQL persistence. Deployment features:
+- **Platform:** Fly.io (containerized Node.js application)
+- **Database:** Fly.io Postgres instance
+- **Environment Variables:** Managed via `fly secrets`
+- **Auto-deployment:** Configured from main branch
+
+**Deploy Commands:**
+```bash
+# Deploy backend to Fly.io
+fly deploy
+
+# Set environment variables
+fly secrets set ANTHROPIC_API_KEY=your-key-here
+```
+
 ## How It Works
 
 MortgageMate provides a conversational web interface powered by a backend AI agent. The agent uses carefully crafted system prompts to guide information gathering while maintaining conversational flexibility—allowing users to share unique, non-standard details that enhance analysis quality.
