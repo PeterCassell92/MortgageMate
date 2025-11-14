@@ -1,10 +1,10 @@
 # MortgageMate
 
-A Tool for obtaining Mortgage Advice from a powerful agentic mortgage advisor, MortgageMate AI.
+An AI-powered mortgage advisory platform featuring an intelligent agentic advisor that helps you navigate complex mortgage decisions.
 
-Online tools already in existance such as CompareTheMarket to give you available mortgage options on the market, and there are many mortgage calculators out there but how do you strategise and select the best option for your unique situation? With a mortgage advisor to understand all aspects of your situation and combine that with the market options you can make optimal decisions.
+Online tools like CompareTheMarket show available mortgage options, and countless calculators exist—but how do you strategize and select the best option for your unique situation? MortgageMate combines comprehensive situational understanding with real market data to deliver optimal decisions.
 
-MortgageMate's edge comes from it's ability to be able to learn every aspect of your situation, including legal clauses from your existing mortgage documents & complicated exit fees which helps strategise both current and future options in order to optimise the timing of your next mortgaging move.
+**MortgageMate's edge:** Advanced document parsing capabilities extract critical details from your existing mortgage documents, including legal clauses and complex exit fees. This deep understanding enables strategic recommendations for both current refinancing and future mortgage moves, optimizing timing and financial outcomes.
 
 ## 🚀 Deployed Application
 
@@ -12,26 +12,79 @@ MortgageMate's edge comes from it's ability to be able to learn every aspect of 
 
 **Backend API:** https://mortgagemate-backend.fly.dev/
 
-## Method
+## How It Works
 
-Tha aim is to provide a Web Front End as an interface to a backend AI Agent. That agent is configured with system prompts and imperatives that drive it towards obtaining the information from the user that it needs to make an analysis, whilst also leaving the conversation free-form enough that the user can offer specific, non-standard, information that can be considered in the analysis.
+MortgageMate provides a conversational web interface powered by a backend AI agent. The agent uses carefully crafted system prompts to guide information gathering while maintaining conversational flexibility—allowing users to share unique, non-standard details that enhance analysis quality.
 
-The analysis aims to provide the user with a sensible strategy to meet their goals and uses RAG to retrieve (presently spoofed) market data about available mortgage offerings.
+**Analysis Process:**
+- AI-driven conversation collects comprehensive mortgage and financial data
+- RAG (Retrieval Augmented Generation) queries market data from a vector database
+- LLM generates personalized mortgage strategy recommendations
 
-A user can register and begin a Mortgage Advisor Session ( a Chat). Each Mortgage Advisor Session is stored in memory on the backend and then it is backed up a PostgreSQL database so that the chat session can be restored.
+**Session Management:**
+Users register and create Mortgage Advisor Sessions (chats). Each session maintains state in-memory for fast interactions, with full persistence to PostgreSQL enabling seamless session restoration across visits.
 
-### Front End
+## 🛠️ Tech Stack
 
-**React** Frontend using TypeScript for Type Safety.
-**Redux** for state management. The Chat Slice is the critical front end slice that sends user messages to the backend, stores the chat state so that the front end can guide the user through the conversation.
+### Frontend
+<p align="left">
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/react/react-original.svg" alt="React" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/redux/redux-original.svg" alt="Redux" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/typescript/typescript-original.svg" alt="TypeScript" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/materialui/materialui-original.svg" alt="Material-UI" width="40" height="40"/>
+</p>
 
 ### Backend
+<p align="left">
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/nodejs/nodejs-original.svg" alt="Node.js" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/postgresql/postgresql-original.svg" alt="PostgreSQL" width="40" height="40"/>
+  <img src="https://avatars.githubusercontent.com/u/126733545?s=200&v=4" alt="LangChain" width="40" height="40"/>
+  <img src="https://pbs.twimg.com/profile_images/1779523725128212480/8DலெsEZu_400x400.jpg" alt="Vectorize" width="40" height="40"/>
+</p>
 
-**PostgreSQL** as a data store for chat session data, enabling chats from previous sessions to be restored and continued.
-**LangChain Integration** for interacting with LLM models, presently set to be Anthropic Claude.
-**Prompt Templating** allows a custom set of prompts to be loaded with user data to steer the agent towards mortgage advisor industry best practices and to steer the user toward useful analysis.
-**RAG from VectorStore** RAG Pipeline set up in Vectorize can perform a daily run of UK market data retrieval. Vectorize implementation within the backend allows the LLM to have access to this vectorstore.
-**Prisma** Prisma is used to ensure the database conforms to a known schema and migrations are handled in a structured way.
+### Observability & Tooling
+<p align="left">
+  <img src="https://avatars.githubusercontent.com/u/126733545?s=200&v=4" alt="LangSmith" width="40" height="40"/>
+  <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/docker/docker-original.svg" alt="Docker" width="40" height="40"/>
+</p>
+
+---
+
+## 🏗️ Architecture Details
+
+### Frontend Technologies
+
+**React + TypeScript**
+Type-safe component architecture ensuring robust UI development and compile-time error detection.
+
+**Redux Toolkit**
+Centralized state management with the Chat Slice handling message flow, conversation state, and UI guidance throughout the mortgage advisory process.
+
+**Material-UI**
+Professional, accessible component library providing consistent UX across the application.
+
+### Backend Technologies
+
+**Node.js + Express**
+RESTful API server handling authentication, chat sessions, and LLM orchestration.
+
+**PostgreSQL**
+Persistent data store for user accounts, chat sessions, messages, and mortgage scenarios. Enables seamless session restoration and chat history.
+
+**LangChain**
+Unified LLM interface for interacting with Anthropic Claude, providing flexible prompt chaining and model abstraction.
+
+**LangSmith**
+Production-grade observability platform tracking LLM requests, responses, token usage, and conversation flows for debugging and optimization.
+
+**Prompt Templating System**
+Custom prompt templates dynamically loaded with user data, steering conversations toward mortgage advisory best practices and comprehensive information gathering.
+
+**Vectorize RAG Pipeline**
+Vector database integration enabling retrieval of real UK mortgage market data. Daily data ingestion keeps recommendations current with market conditions.
+
+**Prisma ORM**
+Type-safe database client with schema management and migrations, ensuring database integrity and developer productivity.
 
 ---
 
