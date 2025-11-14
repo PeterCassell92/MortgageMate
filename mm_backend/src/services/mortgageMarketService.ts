@@ -4,7 +4,7 @@ import { LangChainService, createLangChainService } from './langChainService';
 import { PromptTemplate } from './MortgageConversation/prompts/prompt_scripts/PromptTemplate';
 import { SEARCH_QUERY_GENERATION_TEMPLATE, createSearchQueryVariables } from './prompts/langChainTemplates';
 import { MarketData, MortgageProduct, VectorizeDocument } from '../types/vectorize';
-import type { MortgageData } from '@mortgagemate/models';
+import type { MortgageData } from '../models/';
 
 export class MortgageMarketService {
   private vectorizeService: VectorizeService | null;

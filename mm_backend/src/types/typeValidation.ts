@@ -3,7 +3,7 @@
  * This file is for compile-time type checking only
  */
 
-import type { MortgageData } from '@mortgagemate/models';
+import type { MortgageData } from '../models/';
 import type { MortgageDataExtraction } from './mortgageDataSchema';
 
 // Test 1: Verify MortgageDataExtraction is assignable to Partial<MortgageData>

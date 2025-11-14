@@ -3,7 +3,7 @@ import { MessageModel } from '../models/Message';
 import { LLMRequestModel } from '../models/LLMRequest';
 import { LLMResponseModel } from '../models/LLMResponse';
 import { MortgageAdvisorService, AdvisorSession } from './MortgageConversation/mortgageAdvisorService';
-import type { MortgageData } from '@mortgagemate/models';
+import type { MortgageData } from '../models/';
 import pool from '../utils/database';
 
 export interface PersistedChatSession {

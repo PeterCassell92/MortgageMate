@@ -1,6 +1,6 @@
 import { PromptTemplate, ConversationContext, PromptTemplateType } from './prompts/prompt_scripts/PromptTemplate';
 import { createMortgageMarketService } from '../mortgageMarketService';
-import type { MortgageData } from '@mortgagemate/models';
+import type { MortgageData } from '../../models/';
 
 export type AdvisorMode = 'data_gathering' | 'analysis' | 'followup';
 

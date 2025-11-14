@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 // Import shared MortgageData interface from models
-import type { MortgageData } from '@mortgagemate/models';
+import type { MortgageData } from '../../../../models/';
 
 export interface ConversationContext {
   collectedData?: Partial<MortgageData>;
