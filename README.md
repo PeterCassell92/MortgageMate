@@ -1,10 +1,10 @@
 # MortgageMate
 
-A Tool for helping users make optimal mortgage decisions.
+A Tool for obtaining Mortgage Advice from a powerful agentic mortgage advisor, MortgageMate AI.
 
-The inspiration for the project was a conversation I had with Claude asking it for mortgage advice. I find Claude useful in this field to myself but it took me knowing how to use Claude well to design the right prompt.
+Online tools already in existance such as CompareTheMarket to give you available mortgage options on the market, and there are many mortgage calculators out there but how do you strategise and select the best option for your unique situation? With a mortgage advisor to understand all aspects of your situation and combine that with the market options you can make optimal decisions.
 
-I want to help future me and potentially other people get to a good prompt so they can easily be presented with actionable data and an understanding of their best mortgage options.
+MortgageMate's edge comes from it's ability to be able to learn every aspect of your situation, including legal clauses from your existing mortgage documents & complicated exit fees which helps strategise both current and future options in order to optimise the timing of your next mortgaging move.
 
 ## 🚀 Deployed Application
 
@@ -14,31 +14,24 @@ I want to help future me and potentially other people get to a good prompt so th
 
 ## Method
 
-To achieve good mortgage advice outcomes we need to make it as easy as possible for a user to generate a good prompt that describes their entire present mortgage situation.
+Tha aim is to provide a Web Front End as an interface to a backend AI Agent. That agent is configured with system prompts and imperatives that drive it towards obtaining the information from the user that it needs to make an analysis, whilst also leaving the conversation free-form enough that the user can offer specific, non-standard, information that can be considered in the analysis.
 
-### Data Gathering (front end)
+The analysis aims to provide the user with a sensible strategy to meet their goals and uses RAG to retrieve (presently spoofed) market data about available mortgage offerings.
 
-I've wrapped a LLM chat bot interface to get user data into a TypeScript React full stack web application.
+A user can register and begin a Mortgage Advisor Session ( a Chat). Each Mortgage Advisor Session is stored in memory on the backend and then it is backed up a PostgreSQL database so that the chat session can be restored.
 
-### Data Storage
+### Front End
 
-I've then structured that data into a PostgreSQL database so that key information can be retrieved. We don't store whole prompts because we want to generate fresh prompts each time such that we use the latest prompt templates with the best mortgage advice outcomes.
+**React** Frontend using TypeScript for Type Safety.
+**Redux** for state management. The Chat Slice is the critical front end slice that sends user messages to the backend, stores the chat state so that the front end can guide the user through the conversation.
 
-I have stored data that will apply to most mortgage scenarios in the database though there will be scope for additional data to be stored on each mortgage scenarios for optimal results
+### Backend
 
-### Idea of this project is:
-
-## A) To develop a usable product fast by only vibe-coding (minimal hands-on-code)
-
-This project is not for commercial use so, though my code standards will be kept high, I'm looking to develop an MVP-like product at pace.
-
-## B) To leverage Anthropic API / OpenAI API endpoints
-
-To understand API integrations for Anthropic at a small-scale. both from a cost and performance perspective. I am most used to using LLMs in a desktop/cli capacity so it will be a good learning experience to get hands-on with the APIs.
-
-## C) To showcase prompt-engineering / RAG for ensuring the application is given suitable context in which to reason
-
-I want to use rules-based coding to create good LLM prompts, a principle that applies more broadly to apps that I am interested in building. This lowers token use by optimising the prompts, makes results more consistent and keeps the context window clear for maximal reasoning.
+**PostgreSQL** as a data store for chat session data, enabling chats from previous sessions to be restored and continued.
+**LangChain Integration** for interacting with LLM models, presently set to be Anthropic Claude.
+**Prompt Templating** allows a custom set of prompts to be loaded with user data to steer the agent towards mortgage advisor industry best practices and to steer the user toward useful analysis.
+**RAG from VectorStore** RAG Pipeline set up in Vectorize can perform a daily run of UK market data retrieval. Vectorize implementation within the backend allows the LLM to have access to this vectorstore.
+**Prisma** Prisma is used to ensure the database conforms to a known schema and migrations are handled in a structured way.
 
 ---
 
