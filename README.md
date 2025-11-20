@@ -10,6 +10,14 @@ Online tools like CompareTheMarket show available mortgage options, and countles
 
 **MortgageMate's edge:** Advanced document parsing capabilities extract critical details from your existing mortgage documents, including legal clauses and complex exit fees. This deep understanding enables strategic recommendations for both current refinancing and future mortgage moves, optimizing timing and financial outcomes.
 
+## 📸 Application Preview
+
+<p align="center">
+  <img src="screenshots/MortgageMateChat1.png" alt="MortgageMate Chat Interface" width="800"/>
+</p>
+
+*AI-powered mortgage advisor providing personalized guidance through natural conversation*
+
 ## 🚀 Deployed Application
 
 **Live App:** https://mortgagemate-ai.netlify.app/
