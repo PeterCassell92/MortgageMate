@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, IconButton, useTheme, useMediaQuery } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import AppHeader from '../components/AppHeader';
 import Chat from '../components/Chat';
 import Sidebar from '../components/Sidebar';
@@ -13,8 +13,9 @@ import { loadExistingChat, createNewChat, loadChatList } from '../store/slices/c
 const Dashboard: React.FC = () => {
   const { numericalId } = useParams<{ numericalId: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { currentNumericalId } = useAppSelector(state => state.chat);
+  const { currentNumericalId, messagesError } = useAppSelector(state => state.chat);
   const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -28,7 +29,13 @@ const Dashboard: React.FC = () => {
 
     if (chatId && !isNaN(chatId)) {
       // Load specific chat from URL
-      dispatch(loadExistingChat(chatId));
+      dispatch(loadExistingChat(chatId)).unwrap().catch((error) => {
+        // If chat not found (404), navigate to dashboard to load/create a chat
+        if (error.includes('not found') || error.includes('404')) {
+          console.log('Chat not found, navigating to dashboard');
+          navigate('/dashboard/chat', { replace: true });
+        }
+      });
     } else if (location.pathname === '/dashboard/chat' && !currentNumericalId && !hasInitialized.current) {
       // No specific chat in URL - check if user has existing chats
       hasInitialized.current = true;
@@ -47,7 +54,7 @@ const Dashboard: React.FC = () => {
         }
       });
     }
-  }, [numericalId, location.pathname, currentNumericalId, dispatch]);
+  }, [numericalId, location.pathname, currentNumericalId, dispatch, navigate]);
 
   const handleMobileDrawerToggle = () => {
     setMobileOpen(!mobileOpen);

@@ -71,9 +71,22 @@ The theme includes custom styling for:
 
 ## Typography
 
-- **Font Family**: System font stack for optimal performance
-- **Headings (h1-h4)**: Semi-bold weight (600)
+### Font Choice: Inter
+
+**Inter** is a professional, highly legible font designed specifically for screens. It's widely used by financial services and fintech companies because of its:
+- **Clarity**: Excellent readability at all sizes
+- **Professionalism**: Clean, modern appearance that conveys trust
+- **Versatility**: Works well for both headings and body text
+- **Financial Industry Use**: Used by Stripe, GitHub, and many financial platforms
+
+### Font Weights & Letter Spacing
+
+- **Headings (h1-h2)**: Bold weight (700) with tight letter spacing (-0.02em to -0.01em)
+- **Headings (h3-h6)**: Semi-bold weight (600) with refined letter spacing
+- **Body Text**: Regular weight (400) with subtle letter spacing (0.005em) for readability
 - **Buttons**: Medium weight (500), normal case (no uppercase transformation)
+
+The tight letter spacing on headings gives a premium, modern feel appropriate for a professional financial service.
 
 ## Shape
 

@@ -43,6 +43,7 @@ export const theme = createTheme({
   },
   typography: {
     fontFamily: [
+      'Inter',
       '-apple-system',
       'BlinkMacSystemFont',
       '"Segoe UI"',
@@ -52,20 +53,38 @@ export const theme = createTheme({
       'sans-serif',
     ].join(','),
     h1: {
-      fontWeight: 600,
+      fontWeight: 700,
+      letterSpacing: '-0.02em',
     },
     h2: {
-      fontWeight: 600,
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
     },
     h3: {
       fontWeight: 600,
+      letterSpacing: '-0.01em',
     },
     h4: {
       fontWeight: 600,
+      letterSpacing: '-0.005em',
+    },
+    h5: {
+      fontWeight: 600,
+    },
+    h6: {
+      fontWeight: 600,
+      letterSpacing: '0em',
     },
     button: {
       fontWeight: 500,
-      textTransform: 'none', // Keep button text in normal case
+      textTransform: 'none',
+      letterSpacing: '0.01em',
+    },
+    body1: {
+      letterSpacing: '0.005em',
+    },
+    body2: {
+      letterSpacing: '0.005em',
     },
   },
   shape: {

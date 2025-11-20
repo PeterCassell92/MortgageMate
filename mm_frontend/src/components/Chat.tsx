@@ -296,7 +296,24 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
             minHeight: 0 // Ensures proper scrolling behavior
           }}
         >
-          {messages.length === 0 ? (
+          {messagesLoading ? (
+            // Loading state when switching chats
+            <Box
+              sx={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                gap: 2
+              }}
+            >
+              <CircularProgress size={40} />
+              <Typography variant="body1" sx={{ color: '#666' }}>
+                Loading chat...
+              </Typography>
+            </Box>
+          ) : messages.length === 0 ? (
             // Initial welcome message
             <Box
               sx={{
@@ -308,9 +325,9 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
                 px: 4
               }}
             >
-              <Typography 
-                variant="h6" 
-                sx={{ 
+              <Typography
+                variant="h6"
+                sx={{
                   color: '#666',
                   fontWeight: 400,
                   lineHeight: 1.5,
@@ -337,7 +354,7 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
                       maxWidth: '70%',
                       padding: 2,
                       borderRadius: 2,
-                      bgcolor: message.role === 'user' ? '#1976d2' : '#f5f5f5',
+                      bgcolor: message.role === 'user' ? 'primary.light' : '#f5f5f5',
                       color: message.role === 'user' ? 'white' : '#333',
                     }}
                   >
@@ -537,12 +554,12 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
               onClick={handleSendMessage}
               disabled={(!inputValue.trim() && attachedDocuments.length === 0) || messagesLoading}
               sx={{
-                bgcolor: '#1976d2',
+                bgcolor: 'primary.main',
                 color: 'white',
                 width: 48,
                 height: 48,
                 '&:hover': {
-                  bgcolor: '#1565c0',
+                  bgcolor: 'primary.dark',
                 },
                 '&:disabled': {
                   bgcolor: '#e0e0e0',
