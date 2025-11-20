@@ -13,7 +13,7 @@ Online tools like CompareTheMarket show available mortgage options, and countles
 ## 📸 Application Preview
 
 <p align="center">
-  <img src="screenshots/MortgageMateChat1.png" alt="MortgageMate Chat Interface" width="800"/>
+  <img src="screenshots/MortgageMateChat2.png" alt="MortgageMate Chat Interface" width="800"/>
 </p>
 
 *AI-powered mortgage advisor providing personalized guidance through natural conversation*
