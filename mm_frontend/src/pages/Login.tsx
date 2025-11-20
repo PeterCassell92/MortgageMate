@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import MMLogo from '../components/MMLogo';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -62,10 +63,14 @@ const Login: React.FC = () => {
       <Container component="main" maxWidth="sm">
         <Card sx={{ width: '100%', maxWidth: 400 }}>
           <CardContent sx={{ p: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+              <MMLogo size="medium" />
+            </Box>
+
             <Typography component="h1" variant="h4" align="center" gutterBottom>
               Welcome Back
             </Typography>
-            
+
             <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
               Sign in to your MortgageMate account
             </Typography>

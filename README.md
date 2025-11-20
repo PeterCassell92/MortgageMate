@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="temporarylogo/owllogo.png" alt="MortgageMate Logo" width="200"/>
+</p>
+
 # MortgageMate
 
 An AI-powered mortgage advisory platform featuring an intelligent agentic advisor that helps you navigate complex mortgage decisions.
