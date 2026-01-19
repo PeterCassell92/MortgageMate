@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Provider } from 'react-redux';
@@ -14,8 +14,10 @@ import theme from './theme/theme';
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user} = useAuth();
-  return user ? <>{children}</> : <Navigate to="/login" replace />;
+  const { user } = useAuth();
+  const location = useLocation();
+
+  return user ? <>{children}</> : <Navigate to="/login" state={{ from: location }} replace />;
 };
 
 // Public Route component (redirect to dashboard if already logged in)

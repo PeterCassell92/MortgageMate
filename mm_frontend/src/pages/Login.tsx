@@ -11,7 +11,7 @@ import {
   CircularProgress,
   Container,
 } from '@mui/material';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import MMLogo from '../components/MMLogo';
 
@@ -19,14 +19,15 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  
+
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     setError(null);
 
     // Basic client-side validation
@@ -39,7 +40,10 @@ const Login: React.FC = () => {
       setIsLoading(true);
       await login(username.trim(), password);
       setIsLoading(false);
-      navigate('/dashboard');
+
+      // Redirect to the page they were trying to access, or default to /dashboard
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
     } catch (err: any) {
       setIsLoading(false);
       setError(err.message || 'Login failed. Please check your credentials.');
