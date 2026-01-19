@@ -41,6 +41,7 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
   const {
     messages,
     messagesLoading,
+    llmThinking,
     currentNumericalId,
     currentAdvisorMode,
     completenessScore,
@@ -124,7 +125,7 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
   };
 
   const handleSendMessage = async () => {
-    if ((!inputValue.trim() && attachedDocuments.length === 0) || messagesLoading || !isInitialized) return;
+    if ((!inputValue.trim() && attachedDocuments.length === 0) || llmThinking || !isInitialized) return;
 
     const messageText = inputValue.trim() || 'Uploaded documents for analysis';
 
@@ -415,8 +416,8 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
                 </Box>
               ))}
               
-              {/* Loading indicator */}
-              {messagesLoading && (
+              {/* LLM thinking indicator */}
+              {llmThinking && (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
                   <Paper
                     elevation={0}
@@ -515,7 +516,7 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              disabled={messagesLoading}
+              disabled={messagesLoading || llmThinking}
               variant="outlined"
               sx={{
                 '& .MuiOutlinedInput-root': {
@@ -529,7 +530,7 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
             <Tooltip title="Attach documents (PDF, images, spreadsheets)">
               <IconButton
                 onClick={handleDocumentUploadClick}
-                disabled={messagesLoading}
+                disabled={messagesLoading || llmThinking}
                 sx={{
                   bgcolor: '#f5f5f5',
                   color: '#666',
@@ -552,7 +553,7 @@ const Chat: React.FC<ChatProps> = ({ numericalId }) => {
             {/* Send Button */}
             <IconButton
               onClick={handleSendMessage}
-              disabled={(!inputValue.trim() && attachedDocuments.length === 0) || messagesLoading}
+              disabled={(!inputValue.trim() && attachedDocuments.length === 0) || messagesLoading || llmThinking}
               sx={{
                 bgcolor: 'primary.main',
                 color: 'white',

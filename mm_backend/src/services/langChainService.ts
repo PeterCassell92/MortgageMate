@@ -115,6 +115,7 @@ export class LangChainService {
           : "mortgage_data_extraction";
 
         // Apply structured output schema to the LLM
+        // @ts-ignore - TypeScript has excessive depth issues with complex Zod union types
         const structuredLLM = llm.withStructuredOutput(schema, {
           name: schemaName
         });
@@ -123,11 +124,13 @@ export class LangChainService {
 
         if (langChainMessages) {
           // Use message array directly
+          // @ts-ignore - TypeScript has excessive depth issues with complex Zod union types
           structuredResponse = await structuredLLM.invoke(langChainMessages);
         } else {
           // Use template (legacy)
           const promptTemplate = PromptTemplate.fromTemplate(request.template!);
           const chain = promptTemplate.pipe(structuredLLM);
+          // @ts-ignore - TypeScript has excessive depth issues with complex Zod union types
           structuredResponse = await chain.invoke(request.variables || {});
         }
 

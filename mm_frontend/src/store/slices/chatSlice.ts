@@ -25,12 +25,15 @@ interface ChatState {
   currentChatId: string | null;
   currentNumericalId: number | null;
   messages: ChatMessage[];
-  messagesLoading: boolean;
+  messagesLoading: boolean; // Only true when loading messages from database
   messagesError: string | null;
 
-  // Error handling
+  // LLM state
+  llmThinking: boolean; // True when waiting for LLM response
   llmError: string | null;
   llmErrorType: string | null;
+
+  // Error handling
   chatCreationError: string | null;
 
   // Chat metadata
@@ -56,6 +59,7 @@ const initialState: ChatState = {
   messagesLoading: false,
   messagesError: null,
 
+  llmThinking: false,
   llmError: null,
   llmErrorType: null,
   chatCreationError: null,
@@ -353,13 +357,13 @@ const chatSlice = createSlice({
     // Send message
     builder
       .addCase(sendMessage.pending, (state) => {
-        state.messagesLoading = true;
+        state.llmThinking = true;
         state.messagesError = null;
         state.llmError = null;
         state.llmErrorType = null;
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
-        state.messagesLoading = false;
+        state.llmThinking = false;
         state.llmError = null;
         state.llmErrorType = null;
 
@@ -397,7 +401,7 @@ const chatSlice = createSlice({
         }
       })
       .addCase(sendMessage.rejected, (state, action) => {
-        state.messagesLoading = false;
+        state.llmThinking = false;
 
         // Try to parse the error to detect LLM_ERROR type
         const errorMessage = action.payload as string;
