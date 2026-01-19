@@ -54,8 +54,11 @@ flyctl postgres create
 
 ### 3. Initialize Backend App
 
+**Important**: The `fly.toml` file is in the **root directory** of the project, so all `flyctl` commands should be run from there.
+
 ```bash
-cd mm_backend
+# Make sure you're in the project root directory (not mm_backend)
+cd /path/to/MortgageCalculator
 
 # Initialize Fly.io app (fly.toml already exists)
 flyctl launch --no-deploy
@@ -117,10 +120,13 @@ Add these non-secret env vars to fly.toml:
 
 ### 6. Deploy Backend
 
-**Important**: The production deployment uses `Dockerfile.prod` (configured in fly.toml), while local development uses `Dockerfile` with docker-compose.
+**Important**:
+- The production deployment uses `Dockerfile.prod` (configured in fly.toml), while local development uses `Dockerfile` with docker-compose.
+- **Run all `flyctl` commands from the project root directory** (where `fly.toml` is located)
 
 ```bash
-# Deploy from mm_backend directory
+# Deploy from project root directory (NOT from mm_backend)
+cd /path/to/MortgageCalculator
 flyctl deploy
 
 # Monitor logs
@@ -147,100 +153,98 @@ curl https://mortgagemate-backend.fly.dev/health
 
 ## Part 2: Deploy Frontend to Netlify
 
-### 1. Update Frontend Environment
+**Current Setup**: The frontend is automatically deployed via GitHub integration. The repository is at https://github.com/PeterCassell92/MortgageMate and deploys from the `master` branch.
 
-Create/update `mm_frontend/.env.production`:
+### 1. Automatic Deployment (GitHub - Already Configured)
+
+The site is configured to automatically deploy when you push to the `master` branch:
 
 ```bash
-# Use your Fly.io backend URL
+# Make your changes, then push to trigger deployment
+git add .
+git commit -m "Your changes"
+git push origin master
+```
+
+Netlify will automatically:
+1. Detect the push to `master`
+2. Build the frontend using the configured settings
+3. Deploy to production
+
+**Build Settings** (already configured in Netlify):
+- **Base directory**: `mm_frontend`
+- **Build command**: `yarn build`
+- **Publish directory**: `mm_frontend/dist`
+
+### 2. Environment Variables in Netlify
+
+Environment variables are already configured in the Netlify dashboard. To add or update them:
+
+1. Go to https://app.netlify.com
+2. Select your site
+3. Go to **Site settings** → **Environment variables**
+4. Click **Add a variable** or edit existing ones
+
+**Current Environment Variables**:
+```bash
 VITE_API_BASE_URL=https://mortgagemate-backend.fly.dev
 VITE_APP_NAME=MortgageMate
 VITE_NODE_ENV=production
 VITE_ENABLE_DEBUG=false
 ```
 
-### 2. Update Backend CORS
+**Note**: After changing environment variables, you need to trigger a redeploy:
+- Go to **Deploys** tab → Click **Trigger deploy** → **Deploy site**
 
-Update `mm_backend/src/index.ts` to allow your Netlify domain:
+### 3. Manual Deployment (CLI - Alternative Method)
 
-```typescript
-// After deployment, add your Netlify URL to CORS
-const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'https://your-app.netlify.app', // Add this after first deploy
-    'https://custom-domain.com'     // If you have a custom domain
-  ],
-  credentials: true
-};
-```
-
-Redeploy backend:
-```bash
-cd mm_backend
-flyctl deploy
-```
-
-### 3. Deploy to Netlify (Option A: CLI)
+If you need to deploy manually without pushing to GitHub:
 
 ```bash
-# Install Netlify CLI
+# Install Netlify CLI (if not already installed)
 npm install -g netlify-cli
 
-# Login
+# Login to Netlify
 netlify login
 
+# Navigate to frontend directory
 cd mm_frontend
 
 # Build the frontend
 yarn build
 
-# Deploy (first time - creates new site)
-netlify deploy --prod
+# Deploy to production
+netlify deploy --prod --dir=dist
 
-# When prompted:
-# - Create & configure new site
-# - Team: Your team
-# - Site name: mortgagemate (or your choice)
-# - Publish directory: dist
-
-# Save the URL! e.g., https://mortgagemate.netlify.app
+# When prompted, select your existing site
 ```
 
-### 4. Deploy to Netlify (Option B: GitHub - Recommended)
+This is useful for:
+- Testing builds before pushing to GitHub
+- Emergency hotfixes
+- Deploying from a different branch
 
-1. **Push to GitHub**:
-   ```bash
-   git add .
-   git commit -m "Prepare for deployment"
-   git push origin main
-   ```
+### 4. Update Backend CORS
 
-2. **Connect to Netlify**:
-   - Go to https://app.netlify.com
-   - Click "Add new site" → "Import an existing project"
-   - Connect to your GitHub repository
-   - Configure build settings:
-     - **Base directory**: `mm_frontend`
-     - **Build command**: `yarn build`
-     - **Publish directory**: `mm_frontend/dist`
+Ensure your backend allows requests from the Netlify URL. Update `mm_backend/src/index.ts`:
 
-3. **Set Environment Variables** in Netlify dashboard:
-   - Go to Site settings → Environment variables
-   - Add:
-     - `VITE_API_BASE_URL`: Your Fly.io backend URL
-     - `VITE_APP_NAME`: MortgageMate
-     - `VITE_NODE_ENV`: production
-     - `VITE_ENABLE_DEBUG`: false
+```typescript
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'https://mortgagemate.netlify.app', // Your Netlify URL
+    'https://custom-domain.com'         // If you have a custom domain
+  ],
+  credentials: true
+};
+```
 
-4. **Deploy**:
-   - Click "Deploy site"
-   - Wait for build to complete
-   - Save the URL (e.g., `https://mortgagemate.netlify.app`)
-
-5. **Update Backend CORS**:
-   - Add the Netlify URL to CORS in `mm_backend/src/index.ts`
-   - Redeploy backend: `flyctl deploy` from `mm_backend/`
+After updating CORS, redeploy the backend:
+```bash
+# From project root directory
+cd /path/to/MortgageCalculator
+flyctl deploy
+```
 
 ---
 
@@ -298,19 +302,30 @@ SELECT COUNT(*) FROM llm_requests;
 
 ### Updating Backend
 ```bash
-cd mm_backend
+# From project root directory
+cd /path/to/MortgageCalculator
 git pull
 flyctl deploy
 ```
 
 ### Updating Frontend
+
+**Automatic (via GitHub - Recommended)**:
+```bash
+# Make changes and push to master branch
+git add .
+git commit -m "Update frontend"
+git push origin master
+
+# Netlify automatically detects and deploys
+# Monitor deployment at https://app.netlify.com
+```
+
+**Manual (via CLI)**:
 ```bash
 cd mm_frontend
-git pull
-# If using GitHub: Netlify auto-deploys on push
-# If using CLI:
 yarn build
-netlify deploy --prod
+netlify deploy --prod --dir=dist
 ```
 
 ### Database Migrations
