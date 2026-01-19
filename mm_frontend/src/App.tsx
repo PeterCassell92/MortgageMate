@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Provider } from 'react-redux';
 import { store } from './store';
+import { useAppDispatch } from './store/hooks';
+import { checkBackendHealth } from './store/slices/serverStatusSlice';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ErrorProvider, useError } from './contexts/ErrorContext';
 import Login from './pages/Login';
@@ -27,6 +29,19 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return user ? <Navigate to="/dashboard" replace /> : <>{children}</>;
 };
 
+// Server Warmer component - triggers health check on mount
+const ServerWarmer: React.FC = () => {
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    // Trigger health check immediately on app mount
+    // This warms up the backend server (especially important for Fly.io free tier)
+    dispatch(checkBackendHealth());
+  }, [dispatch]);
+
+  return null; // This component doesn't render anything
+};
+
 // Error Modal Handler component
 const ErrorModalHandler: React.FC = () => {
   const { hasConnectionError, clearError } = useError();
@@ -47,6 +62,7 @@ const ErrorModalHandler: React.FC = () => {
 function App() {
   return (
     <Provider store={store}>
+      <ServerWarmer />
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <ErrorProvider>
