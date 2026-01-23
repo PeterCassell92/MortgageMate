@@ -124,6 +124,93 @@ Type-safe database client with schema management and migrations, ensuring databa
 
 ---
 
+## 🚧 Current State of Development
+
+### Database Architecture - In Transition
+
+The project is currently migrating to a **Prisma-first architecture**:
+
+**Current State:**
+- ✅ **Prisma** - Used exclusively for LLM logging (requests, responses, analytics)
+- ⚠️ **Raw `pg` Pool** - Still used for core application data (users, chats, messages, mortgage scenarios)
+- 📁 **Hybrid approach** - New features use Prisma, legacy code uses raw SQL
+
+**Planned Migration:**
+- Migrate all database operations to Prisma ORM for consistency
+- Remove raw SQL queries and the `pg` Pool pattern
+- Leverage Prisma's type safety and migration system across the entire application
+
+### LLM Implementation - Dual Mode Support
+
+The application currently supports two LLM implementation modes via the `LLM_IMPLEMENTATION` environment variable:
+
+**Current State:**
+- ✅ **LangChain Mode** (`LLM_IMPLEMENTATION=langchain`) - Recommended, active development
+  - Unified LLM interface via LangChain
+  - Structured output with Zod schemas
+  - LangSmith integration for observability
+  - Advanced prompt chaining capabilities
+
+- ⚠️ **Legacy Mode** (`LLM_IMPLEMENTATION=legacy`) - Maintained for backwards compatibility
+  - Direct SDK calls to Anthropic/OpenAI
+  - Original implementation with custom prompt handling
+  - Full feature parity with LangChain mode
+
+**Planned Changes:**
+- Remove legacy LLM support entirely
+- Become a **LangChain-only application**
+- Simplify codebase by eliminating dual implementation paths
+- Leverage LangChain's ecosystem for advanced features
+
+### Document Processing - Future Architecture
+
+**Current State:**
+- ✅ Document parsing handled by Node.js backend
+- ✅ Claude Sonnet 4 Vision API for document extraction
+- ✅ Supports PDFs, images (JPEG, PNG, WebP, HEIC)
+
+**Potential Future Architecture:**
+- 🔄 **Python Microservice** for document ingestion
+  - Specialized document processing libraries (PyPDF2, pdf2image, etc.)
+  - Advanced ML models for financial document understanding
+  - Dedicated service for compute-intensive document parsing
+  - RESTful API integration with Node.js backend
+
+**Rationale:**
+- Python has superior document processing ecosystem
+- Separation of concerns - document processing vs. application logic
+- Scalability - independent scaling of document ingestion workload
+
+### Performance & Cost Optimization - Helicone Caching
+
+**Current State:**
+- ✅ Database logging of all LLM requests via Prisma
+- ✅ LangSmith observability integration (optional)
+- ⚠️ No response caching - every request hits the API
+
+**Planned Enhancement:**
+- 🔄 **Helicone Integration** for LLM response caching
+  - Edge-based caching with <100ms cache hit latency
+  - 30-60% cost reduction through intelligent caching
+  - 10-30x performance improvement for cached responses
+  - Protection against rate limits and API downtime
+  - Works alongside Anthropic's native prompt caching for up to 99% savings
+
+**Key Use Cases:**
+- Cache welcome messages (currently regenerated every chat)
+- Cache common mortgage questions asked across users
+- Cache deterministic analysis results for identical scenarios
+- Enable instant responses during development/testing
+
+**Implementation Strategy:**
+- Phase 1: Development environment only (zero-cost testing)
+- Phase 2: Production caching for high-frequency queries
+- Phase 3: Full observability stack (Helicone + Prisma + LangSmith)
+
+**See also:** [HELICONE_CACHING_EVALUATION.md](mm_backend/HELICONE_CACHING_EVALUATION.md) for detailed analysis
+
+---
+
 ## 💻 Development Setup
 
 ### Prerequisites
@@ -139,15 +226,30 @@ git clone https://github.com/yourusername/MortgageCalculator.git
 cd MortgageCalculator
 ```
 
-**2. Set up environment variables**
+**2. Set up environment variables (REQUIRED)**
+
+This application requires a real Anthropic API key to function properly. The AI mortgage advisor uses Claude Sonnet 4 for intelligent conversations and analysis.
+
 ```bash
 # Copy example environment file
 cp .env.example .env
-
-# Edit .env and add your API keys
-# ANTHROPIC_API_KEY=your-key-here
-# LLM_PROVIDER=anthropic (or 'mock' for development)
 ```
+
+**Edit `.env` and configure your API key:**
+```bash
+# Required: Get your API key from https://console.anthropic.com/
+ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
+
+# LLM Configuration
+LLM_PROVIDER=anthropic
+MOCK_LLM=false  # Set to true only for testing without API calls
+LLM_IMPLEMENTATION=langchain  # or 'legacy' for direct SDK calls
+
+# Database (default values work with Docker Compose)
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/mortgagemate_dev
+```
+
+> **Note:** While you can set `MOCK_LLM=true` for initial testing, the application is designed to work with real Claude AI. Mock mode provides placeholder responses only.
 
 **3. Start all services with Docker Compose**
 ```bash
@@ -163,10 +265,15 @@ docker-compose up --build
 
 This will start:
 - **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:5000
+- **Backend API:** http://localhost:4321
 - **PostgreSQL:** localhost:5433
 
-**4. Stop services**
+**4. Access the application**
+- Navigate to http://localhost:3000
+- Login with test credentials: **username:** `pete`, **password:** `invasion`
+- Start chatting with the AI mortgage advisor!
+
+**5. Stop services**
 ```bash
 docker-compose down
 ```
@@ -220,23 +327,27 @@ Key environment variables for development:
 
 **Backend (`.env`):**
 ```bash
-# LLM Configuration
-ANTHROPIC_API_KEY=your-key-here
-LLM_PROVIDER=anthropic          # or 'mock' for testing
-LLM_IMPLEMENTATION=langchain    # or 'legacy'
-MOCK_LLM=false
+# LLM Configuration (REQUIRED)
+# Get your API key from https://console.anthropic.com/
+ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
+LLM_PROVIDER=anthropic          # Options: anthropic, openai, mock
+LLM_IMPLEMENTATION=langchain    # Options: langchain, legacy
+MOCK_LLM=false                  # Set to true only for testing without API calls
 
-# Database
+# Database (default values work with Docker Compose)
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/mortgagemate_dev
 
-# Vectorize (RAG)
+# Vectorize (RAG) - Optional, for real mortgage market data
 VECTORIZE_API_KEY=your-vectorize-key
 VECTORIZE_INDEX_ID=your-index-id
 
-# LangSmith (optional)
+# LangSmith (Optional) - For LLM observability and debugging
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_API_KEY=your-langsmith-key
+LANGCHAIN_PROJECT=mortgagemate-dev
 ```
+
+> **Important:** The `ANTHROPIC_API_KEY` is required for the application to function. While mock mode exists for testing, it provides only placeholder responses and does not demonstrate the application's true AI capabilities.
 
 ### TypeScript Type Checking
 

@@ -112,9 +112,22 @@ CREATE TRIGGER update_chats_updated_at
     BEFORE UPDATE ON chats 
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Insert MortgageAdvisor system user with id=0 (used for AI messages)
+-- This user cannot be used for login - it's a system placeholder
+INSERT INTO users (id, username, password_hash, salt)
+VALUES (
+    0,
+    'MortgageAdvisor',
+    '$2b$12$SystemUserNoLoginHash.PadToCorrectLength.ForBcryptHashFormat',
+    'system_user_salt_no_login_allowed'
+) ON CONFLICT (id) DO NOTHING;
+
+-- Reset the sequence to start from 1 for regular users
+SELECT setval('users_id_seq', 1, false);
+
 -- Insert default user: pete with password 'invasion'
 -- Password hash for 'invasion' with bcrypt rounds=12
-INSERT INTO users (username, password_hash, salt) 
+INSERT INTO users (username, password_hash, salt)
 VALUES (
     'pete',
     '$2b$12$QW050SGhgLo49HXkKtrnieuuf6OMwN1X19YlAbAuTpbKlyEq/8Sw2',
